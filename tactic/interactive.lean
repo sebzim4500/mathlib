@@ -283,12 +283,6 @@ meta def tauto := tautology
 /-- `wlog h : i ≤ j using i j`: without loss of generality, let us assume `h : i ≤ j`
     If `using i j` is omitted, the last two free variables found in `i ≤ j` will be used.
 
-    `wlog : R x y` (synonymous with `wlog : R x y using x y`) adds `R x y` to the
-    assumptions and the goal `⊢ R x y ∨ R y x`.
-
-    A special case is made for total order relations `≤` where `⊢ R x y ∨ R y x`
-    is discharged automatically.
-
     TODO(Simon): Generalize to multiple pairs of variables
   -/
 meta def wlog (h : parse ident?)
