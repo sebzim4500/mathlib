@@ -112,6 +112,36 @@ instance : is_lawful_monad roption :=
 instance : monad_fail roption :=
 { fail := λ_ _, roption.none, ..roption.monad }
 
+lemma assert_if_neg {p : Prop}
+  (x : p → roption α)
+  (h : ¬ p)
+: assert p x = roption.none :=
+by { dsimp [assert,roption.none],
+     have : (∃ (h : p), (x h).dom) ↔ false,
+     { split ; intros h' ; repeat { cases h' with h' },
+       exact h h' },
+     congr,
+     repeat { rw this <|> apply hfunext },
+     intros, cases y, }
+
+lemma assert_if_pos {p : Prop}
+  (x : p → roption α)
+  (h : p)
+: assert p x = x h :=
+by { dsimp [assert],
+     have : (∃ (h : p), (x h).dom) ↔ (x h).dom,
+     { split ; intros h'
+       ; cases h' <|> split
+       ; assumption, },
+     cases hx : x h, congr, rw [this,hx],
+     apply hfunext, rw [this,hx],
+     intros, simp [hx] }
+
+@[simp]
+lemma roption.none_bind {α β : Type u} (f : α → roption β)
+: roption.none >>= f = roption.none :=
+by simp [roption.none,has_bind.bind,roption.bind,assert_if_neg]
+
 /- `restrict p o h` replaces the domain of `o` with `p`, and is well defined when
   `p` implies `o` is defined. -/
 def restrict (p : Prop) : ∀ (o : roption α), (p → o.dom) → roption α
