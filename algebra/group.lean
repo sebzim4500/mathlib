@@ -136,6 +136,22 @@ attribute [to_additive neg_add] mul_inv
 
 end pending_1857
 
+instance monoid_to_is_left_id {α : Type*} [monoid α]
+: is_left_id α (*) 1 :=
+⟨ monoid.one_mul ⟩
+
+instance monoid_to_is_right_id {α : Type*} [monoid α]
+: is_right_id α (*) 1 :=
+⟨ monoid.mul_one ⟩
+
+instance add_monoid_to_is_left_id {α : Type*} [add_monoid α]
+: is_left_id α (+) 0 :=
+⟨ add_monoid.zero_add ⟩
+
+instance add_monoid_to_is_right_id {α : Type*} [add_monoid α]
+: is_right_id α (+) 0 :=
+⟨ add_monoid.add_zero ⟩
+
 universe u
 variables {α : Type u}
 
@@ -362,6 +378,12 @@ section monoid
 
   @[simp] theorem one_divp (u : units α) : 1 /ₚ u = ↑u⁻¹ :=
   by simp [divp]
+
+  variable α
+
+  class is_submonoid (S : set α) : Prop :=
+  (one_mem : (1:α) ∈ S)
+  (mul_mem : ∀ {s t}, s ∈ S → t ∈ S → s*t ∈ S)
 
 end monoid
 
