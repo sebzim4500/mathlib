@@ -42,7 +42,7 @@ meta instance prod_elaborable {α α' β β' : Type} [elaborable α α']  [elabo
 meta def parse_mono_function' (l r : pexpr) :=
 do l' ← to_expr l,
    r' ← to_expr r,
-   parse_mono_function { monotonicity_cfg . } l' r'
+   parse_mono_function { mono_cfg . } l' r'
 
 run_cmd
 do xs ← mmap to_expr [``(1),``(2),``(3)],
@@ -84,7 +84,7 @@ lemma bar
   (h : 3 + 6 ≤ 4 + 5)
 : 1 + 3 + 2 + 6 ≤ 4 + 2 + 1 + 5 :=
 begin
-  monotonicity1,
+  ac_mono,
   apply h
 end
 
@@ -94,10 +94,10 @@ lemma bar'
 : (1 + 3 + 2) - 6 ≤ (4 + 2 + 1 : ℤ) - 5 :=
 begin
   transitivity (1 + 3 + 2 - 5 : ℤ),
-  monotonicity1,
+  ac_mono,
   apply h',
-  monotonicity1,
-  monotonicity1,
+  ac_mono,
+  ac_mono,
   apply h
 end
 
@@ -178,7 +178,7 @@ lemma bar_bar'
   (h : [] ++ [3] ++ [2] ≤ [1] ++ [5] ++ [4])
 : [] ++ [3] ++ [2] ++ [2] ≤ [1] ++ [5] ++ ([4] ++ [2]) :=
 begin
-  monotonicity1,
+  ac_mono,
   apply h
 end
 
@@ -186,7 +186,7 @@ lemma bar_bar''
   (h : [3] ++ [2] ++ [2] ≤ [5] ++ [4] ++ [])
 : [1] ++ ([3] ++ [2]) ++ [2] ≤ [1] ++ [5] ++ ([4] ++ []) :=
 begin
-  monotonicity1,
+  ac_mono,
   apply h,
 end
 
@@ -194,7 +194,7 @@ lemma bar_bar
   (h : [3] ++ [2] ≤ [5] ++ [4])
 : [1] ++ [3] ++ [2] ++ [2] ≤ [1] ++ [5] ++ ([4] ++ [2]) :=
 begin
-  monotonicity1,
+  ac_mono,
   apply h
 end
 
@@ -217,8 +217,8 @@ example (x y z : ℕ)
   (h : x ≤ y)
 : P (x + z) → P (z + y) :=
 begin
-  monotonicity1,
-  monotonicity1,
+  ac_mono,
+  ac_mono,
   apply h,
 end
 
@@ -226,8 +226,8 @@ example (x y z : ℕ)
   (h : y ≤ x)
 : Q (x + z) → Q (z + y) :=
 begin
-  monotonicity1,
-  monotonicity1,
+  ac_mono,
+  ac_mono,
   apply h,
 end
 
@@ -236,9 +236,9 @@ example (x y z k m n : ℤ)
   (h₁ : y ≤ x)
 : (m + x + n) * z + k ≤ z * (y + n + m) + k :=
 begin
-  monotonicity1,
-  monotonicity1,
-  monotonicity1,
+  ac_mono,
+  ac_mono,
+  ac_mono,
   solve_by_elim
 end
 
@@ -247,9 +247,9 @@ example (x y z k m n : ℕ)
   (h₁ : x ≤ y)
 : (m + x + n) * z + k ≤ z * (y + n + m) + k :=
 begin
-  monotonicity1,
-  monotonicity1,
-  monotonicity1,
+  ac_mono,
+  ac_mono,
+  ac_mono,
   solve_by_elim
 end
 
@@ -257,20 +257,20 @@ example (x y z k m n : ℕ)
   (h₀ : z ≥ 0)
   (h₁ : x ≤ y)
 : (m + x + n) * z + k ≤ z * (y + n + m) + k :=
-by  monotonicity h₁
+by  ac_mono* h₁
 
 example (x y z k m n : ℕ)
   (h₀ : z ≥ 0)
   (h₁ : m + x + n ≤ y + n + m)
 : (m + x + n) * z + k ≤ z * (y + n + m) + k :=
-by monotonicity h₁
+by ac_mono* h₁
 
 example (x y z k m n : ℕ)
   (h₀ : z ≥ 0)
   (h₁ : n + x + m ≤ y + n + m)
 : (m + x + n) * z + k ≤ z * (y + n + m) + k :=
 begin
-  monotonicity : m + x + n ≤ y + n + m,
+  ac_mono* : m + x + n ≤ y + n + m,
   transitivity ; [ skip , apply h₁ ],
   apply le_of_eq,
   ac_refl,
@@ -281,8 +281,8 @@ example (x y z k m n : ℕ)
 : true :=
 begin
   have : (m + x + n) * z + k ≤ z * (y + n + m) + k,
-  { monotonicity1,
-    success_if_fail { monotonicity1 }, -- can't prove 0 ≤ z
+  { ac_mono,
+    success_if_fail { ac_mono }, -- can't prove 0 ≤ z
     admit },
   trivial
 end
@@ -292,7 +292,7 @@ example (x y z k m n : ℕ)
 : true :=
 begin
   have : (m + x + n) * z + k ≤ z * (y + n + m) + k,
-  { monotonicity,
+  { ac_mono,
     change (m + x + n) * z ≤ z * (y + n + m),
     admit },
   trivial,
@@ -302,9 +302,7 @@ example (x y z k m n i j : ℕ)
   (h₁ : x + i = y + j)
 : (m + x + n + i) * z + k = z * (j + n + m + y) + k :=
 begin
-  monotonicity1,
-  monotonicity1,
-  monotonicity1,
+  ac_mono^3,
   simp [h₁],
 end
 
@@ -312,7 +310,7 @@ example (x y z k m n i j : ℕ)
   (h₁ : x + i = y + j)
 : (m + x + n + i) * z + k = z * (j + n + m + y) + k :=
 begin
-  monotonicity,
+  ac_mono*,
   simp [h₁],
 end
 
@@ -323,7 +321,7 @@ begin
   (do v ← mk_mvar,
       p ← to_expr ```(%%v + x ≤ y + %%v),
       assert `h' p),
-  monotonicity h,
+  ac_mono h,
   trivial,
   exact 1,
 end

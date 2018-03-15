@@ -27,7 +27,7 @@ open tactic
 local postfix `?`:9001 := optional
 local postfix *:9001 := many
 
-structure monotonicity_cfg :=
+structure mono_cfg :=
   (unify := ff)
 
 meta inductive mono_function (elab : bool := tt)
@@ -88,7 +88,7 @@ open list (hiding map) functor dlist
 
 section config
 
-parameter opt : monotonicity_cfg
+parameter opt : mono_cfg
 parameter asms : list expr
 
 meta def unify_with_instance (e : expr) : tactic unit :=
@@ -483,7 +483,7 @@ do gs ← get_goals,
     Special care is taken when `f` is the repeated application of an
     associative operator and if the operator is commutative
 -/
-meta def monotonicity1 (cfg : monotonicity_cfg := { monotonicity_cfg . })
+meta def ac_mono_aux (cfg : mono_cfg := { mono_cfg . })
 : tactic unit :=
 hide_meta_vars $ λ asms,
 do (l,r,id_rs,g) ← target >>= instantiate_mvars >>= monotonicity_goal cfg <|> fail "monotonic context not found",
@@ -511,10 +511,6 @@ do (l,r,id_rs,g) ← target >>= instantiate_mvars >>= monotonicity_goal cfg <|> 
      n ← num_goals,
      iterate_exactly (n-1) (try $ solve1 $ apply_instance <|> solve_by_elim {restr_hyp_set := asms}))
 
-meta def monotonicity_n (n : ℕ) (cfg : monotonicity_cfg := { monotonicity_cfg . })
-: tactic unit :=
-iterate_exactly n (monotonicity1 cfg)
-
 open sum nat
 
 /-- (repeat_until_or_at_most n t u): repeat tactic `t` at most n times or until u succeeds -/
@@ -525,30 +521,65 @@ meta def repeat_until_or_at_most : nat → tactic unit → tactic unit → tacti
 meta def repeat_until : tactic unit → tactic unit → tactic unit :=
 repeat_until_or_at_most 100000
 
+inductive rep_arity
+| one | exactly (n : ℕ) | many
+
+meta instance has_reflect_rep_arity : has_reflect rep_arity
+ | rep_arity.one := `(_)
+ | rep_arity.many := `(_)
+ | (rep_arity.exactly n) := `(_)
+
+meta def repeat_or_not : rep_arity → tactic unit → option (tactic unit) → tactic unit
+ | rep_arity.one  tac none := tac
+ | rep_arity.many tac none := repeat tac
+ | (rep_arity.exactly n) tac none := iterate_exactly n tac
+ | rep_arity.one  tac (some until) := tac >> until
+ | rep_arity.many tac (some until) := repeat_until tac until
+ | (rep_arity.exactly n) tac (some until) := iterate_exactly n tac >> until
+
 meta def assert_or_rule : lean.parser (pexpr ⊕ pexpr) :=
 (inl <$> texpr <|> (tk ":" *> inr <$> texpr))
 
-/-- `monotonicity` repeatedly unwraps monotonic functions using `monotonicity1`
-    until it cannot unwrap anymore.
+meta def arity : lean.parser rep_arity :=
+rep_arity.many <$ tk "*" <|>
+rep_arity.exactly <$> (tk "^" *> small_nat) <|>
+pure rep_arity.one
 
-    `monotonicity h` unwraps monotonic functions until it can use `h` to solve
-    the remaining goal. Fails if `h` can never solve the goal.
+/-- `ac_mono` reduces the `f x ⊑ f y`, for some relation `⊑` and a
+    monotonic function `f` to `x ≺ y`.
 
-    `monotonicty : p` asserts `p` and uses it to discharge the final goal after
-    unwrapping a series of monotonic functions. Useful for controlling the number
-    of unwrappings performed.
+    `ac_mono*` unwraps monotonic functions until it can't.
 
-    TODO: with `monotonicity h` and `monotonicty : p` split the remaining gaol if
+    `ac_mono^k`, for some literal number `k` applies monotonicity `k`
+    times.
+
+    `ac_mono h`, with `h` a hypothesis, unwraps monotonic functions
+    and uses `h` to solve the remaining goal. Can be combined with * or
+    ^k: `ac_mono* h`
+
+    `ac_mono : p` asserts `p` and uses it to discharge the goal result
+    unwrapping a series of monotonic functions. Can be combined with * or
+    ^k: `ac_mono* : p`
+
+    In the case where `f` is an associative or commutative operator,
+    `ac_mono` will consider any possible permutation of its arguments
+    and use the one the minimizes the difference between the left-hand
+    side and the right-hand side.
+
+    TODO: with `ac_mono h` and `ac_mono : p` split the remaining gaol if
       the provided rule does not solve it completely.
 -/
-meta def monotonicity : parse assert_or_rule? → tactic unit
- | none := repeat monotonicity1
- | (some (inl h)) :=
-do repeat_until monotonicity1 $ (tactic.refine h)
- | (some (inr t)) :=
+meta def ac_mono (rep : parse arity) :
+         parse assert_or_rule? →
+         opt_param mono_cfg { mono_cfg . } →
+         tactic unit
+ | none opt := repeat_or_not rep (ac_mono_aux opt) none
+ | (some (inl h)) opt :=
+do repeat_or_not rep (ac_mono_aux opt) (tactic.refine h)
+ | (some (inr t)) opt :=
 do h ← i_to_expr t >>= assert `h,
    tactic.swap,
-   repeat_until monotonicity1 (tactic.refine $ to_pexpr h)
+   repeat_or_not rep (ac_mono_aux opt) (tactic.refine $ to_pexpr h)
 
 meta def match_imp : expr → tactic (expr × expr)
  | `(%%e₀ → %%e₁) :=
@@ -557,7 +588,7 @@ meta def match_imp : expr → tactic (expr × expr)
  | _ := failed
 
 meta def monotoncity.check_rel (xs : list expr) (l r : expr) : tactic unit :=
-do (_,x,y,_) ← find_one_difference { monotonicity_cfg . }
+do (_,x,y,_) ← find_one_difference { mono_cfg . }
                l.get_app_args r.get_app_args,
    when (¬ l.get_app_fn = r.get_app_fn)
      (fail format!"{l} and {r} should be the f x and f y for some f"),

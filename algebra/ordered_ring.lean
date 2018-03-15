@@ -314,7 +314,7 @@ begin
   rw [nat.sub_add_cancel h'],
   apply @lt_of_le_of_lt _ _ _ (z - y + y),
   rw [nat.sub_add_cancel h''],
-  monotonicity h,
+  ac_mono h,
 end
 
 end monotonicity
