@@ -42,7 +42,7 @@ meta instance prod_elaborable {α α' β β' : Type} [elaborable α α']  [elabo
 meta def parse_mono_function' (l r : pexpr) :=
 do l' ← to_expr l,
    r' ← to_expr r,
-   parse_mono_function { mono_cfg . } l' r'
+   parse_ac_mono_function { mono_cfg . } l' r'
 
 run_cmd
 do xs ← mmap to_expr [``(1),``(2),``(3)],
@@ -325,3 +325,51 @@ begin
   trivial,
   exact 1,
 end
+
+namespace tactic.interactive
+open interactive interactive.types lean.parser
+
+meta def guard_expr_eq' (t : expr) (p : parse $ tk ":=" *> texpr) : tactic unit :=
+do e ← to_expr p, is_def_eq t e
+
+/--
+`guard_target t` fails if the target of the main goal is not `t`.
+We use this tactic for writing tests.
+-/
+meta def guard_target' (p : parse texpr) : tactic unit :=
+do t ← target, guard_expr_eq' t p
+
+end tactic.interactive
+
+-- example {x y z : ℕ} : y + x ≤ y + z :=
+-- begin
+--   mono,
+--   guard_target x ≤ z,
+--   admit,
+-- end
+
+example {x y z : ℕ} : true :=
+begin
+  suffices : x + y ≤ z + y, trivial,
+  mono,
+  -- (do guard_target ```(x ≤ z)),
+  -- (do target >>= instantiate_mvars >>= tactic.change),
+  guard_target' x ≤ z,
+  admit,
+end
+
+-- example {x y z w : ℕ} : x + y ≤ z + w :=
+-- begin
+--   mono,
+--   guard_target x ≤ z, admit,
+--   guard_target y ≤ w, admit,
+--   admit,
+-- end
+
+-- example {x y z w : ℕ} : x * y ≤ z * w :=
+-- begin
+--   mono,
+--   guard_target x ≤ z, admit,
+--   guard_target x ≤ z, admit,
+--   admit,
+-- end

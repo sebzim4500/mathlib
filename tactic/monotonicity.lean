@@ -58,25 +58,25 @@ meta instance has_to_tactic_format_mono_function : has_to_tactic_format mono_fun
 { to_tactic_format := mono_function.to_tactic_format }
 
 @[derive traversable]
-meta structure mono_ctx' (rel : Type) :=
+meta structure ac_mono_ctx' (rel : Type) :=
   (to_rel : rel)
   (function : mono_function)
   (left right rel_def : expr)
 
 @[reducible]
-meta def mono_ctx := mono_ctx' (option (expr → expr → expr))
+meta def ac_mono_ctx := ac_mono_ctx' (option (expr → expr → expr))
 @[reducible]
-meta def mono_ctx_ne := mono_ctx' (expr → expr → expr)
+meta def ac_mono_ctx_ne := ac_mono_ctx' (expr → expr → expr)
 
-meta def mono_ctx.to_tactic_format (ctx : mono_ctx) : tactic format :=
+meta def ac_mono_ctx.to_tactic_format (ctx : ac_mono_ctx) : tactic format :=
 do fn  ← pp ctx.function,
    l   ← pp ctx.left,
    r   ← pp ctx.right,
    rel ← pp ctx.rel_def,
    return format!"{{ function := {fn}\n, left  := {l}\n, right := {r}\n, rel_def := {rel} }"
 
-meta instance has_to_tactic_format_mono_ctx : has_to_tactic_format mono_ctx :=
-{ to_tactic_format := mono_ctx.to_tactic_format }
+meta instance has_to_tactic_format_mono_ctx : has_to_tactic_format ac_mono_ctx :=
+{ to_tactic_format := ac_mono_ctx.to_tactic_format }
 
 meta def as_goal (e : expr) (tac : tactic unit) : tactic unit :=
 do gs ← get_goals,
@@ -236,7 +236,7 @@ meta def same_function_aux
 meta def same_function : expr → expr → tactic (expr × list expr × list expr) :=
 same_function_aux [] []
 
-meta def parse_mono_function (l r : expr)
+meta def parse_ac_mono_function (l r : expr)
 : tactic (expr × expr × list expr × mono_function) :=
 do (full_f,ls,rs) ← same_function l r,
    (a,c,i,f) ← check_ac l,
@@ -263,14 +263,14 @@ do (full_f,ls,rs) ← same_function l r,
      (xs₀,x₀,x₁,xs₁) ← find_one_difference ls rs,
      return (x₀,x₁,[],mono_function.non_assoc full_f xs₀ xs₁)
 
-meta def parse_mono_function' (l r : pexpr) :=
+meta def parse_ac_mono_function' (l r : pexpr) :=
 do l' ← to_expr l,
    r' ← to_expr r,
-   parse_mono_function l' r'
+   parse_ac_mono_function l' r'
 
-meta def monotonicity_goal : expr → tactic (expr × expr × list expr × mono_ctx)
+meta def ac_monotonicity_goal : expr → tactic (expr × expr × list expr × ac_mono_ctx)
  | `(%%e₀ → %%e₁) :=
-  do (l,r,id_rs,f) ← parse_mono_function e₀ e₁,
+  do (l,r,id_rs,f) ← parse_ac_mono_function e₀ e₁,
      t₀ ← infer_type e₀,
      t₁ ← infer_type e₁,
      rel_def ← to_expr ``(λ x₀ x₁, (x₀ : %%t₀) → (x₁ : %%t₁)),
@@ -280,7 +280,7 @@ meta def monotonicity_goal : expr → tactic (expr × expr × list expr × mono_
             , to_rel := some $ expr.pi `x binder_info.default
             , rel_def := rel_def })
  | `(%%e₀ = %%e₁) :=
-  do (l,r,id_rs,f) ← parse_mono_function e₀ e₁,
+  do (l,r,id_rs,f) ← parse_ac_mono_function e₀ e₁,
      t₀ ← infer_type e₀,
      t₁ ← infer_type e₁,
      rel_def ← to_expr ``(λ x₀ x₁, (x₀ : %%t₀) = (x₁ : %%t₁)),
@@ -290,7 +290,7 @@ meta def monotonicity_goal : expr → tactic (expr × expr × list expr × mono_
             , to_rel := none
             , rel_def := rel_def })
  | (expr.app (expr.app rel e₀) e₁) :=
-  do (l,r,id_rs,f) ← parse_mono_function e₀ e₁,
+  do (l,r,id_rs,f) ← parse_ac_mono_function e₀ e₁,
      return (e₀, e₁, id_rs,
             { function := f
             , left := l, right := r
@@ -336,7 +336,7 @@ do x₀ ← pp x₀,
 meta instance has_to_tactic_format_mono_law : has_to_tactic_format mono_law :=
 { to_tactic_format := mono_law.to_tactic_format }
 
-meta def mk_rel (ctx : mono_ctx_ne) (f : expr → expr) : expr :=
+meta def mk_rel (ctx : ac_mono_ctx_ne) (f : expr → expr) : expr :=
 ctx.to_rel (f ctx.left) (f ctx.right)
 
 meta def mk_congr_args (fn : expr) (xs₀ xs₁ : list expr) (l r : expr) : tactic expr :=
@@ -345,7 +345,7 @@ do p ← mk_app `eq [fn.mk_app $ xs₀ ++ l :: xs₁,fn.mk_app $ xs₀ ++ r :: x
      (do iterate_exactly (xs₁.length) (applyc `congr_fun),
          applyc `congr_arg)
 
-meta def mk_congr_law (ctx : mono_ctx) : tactic expr :=
+meta def mk_congr_law (ctx : ac_mono_ctx) : tactic expr :=
 match ctx.function with
  | (mono_function.assoc f x₀ x₁) :=
     if (x₀ <|> x₁).is_some
@@ -355,8 +355,8 @@ match ctx.function with
  | (mono_function.non_assoc f x₀ x₁) := mk_congr_args f x₀ x₁ ctx.left ctx.right
 end
 
-meta def mk_pattern (ctx : mono_ctx) : tactic mono_law :=
-match (sequence ctx : option (mono_ctx' _)) with
+meta def mk_pattern (ctx : ac_mono_ctx) : tactic mono_law :=
+match (sequence ctx : option (ac_mono_ctx' _)) with
  | (some ctx) :=
    match ctx.function with
     | (mono_function.assoc f (some x) (some y)) :=
@@ -424,20 +424,6 @@ do let vs := e.list_meta_vars,
    let r := e.get_app_fn.const_name,
    return format!"{r}:\n{format.join ts}"
 
-meta def my_ac_refl : tactic unit :=
-do g ← target >>= instantiate_mvars,
-   let vs := g.list_meta_vars,
-   vs' ← mmap (λ v, try_core $ tactic.generalize v) vs,
-   intron (filter_map id vs').length,
-   ac_refl
-
-meta def my_ac_refl' : tactic unit :=
-do (l,r) ← target >>= match_eq,
-   let fn := l.app_fn.app_fn,
-   a ← to_expr ``(is_associative %%fn) >>= mk_instance,
-   c ← to_expr ``(is_commutative %%fn) >>= mk_instance,
-   e ← perm_ac fn a c l r, tactic.exact e
-
 meta def generalize_meta_vars : tactic (expr × list expr × expr) :=
 do tgt ← target >>= instantiate_mvars,
    tactic.change tgt,
@@ -477,6 +463,16 @@ do gs ← get_goals,
    tac, done,
    set_goals gs
 
+meta def mono_aux (cfg : mono_cfg := { mono_cfg . }) : tactic unit :=
+do t ← target,
+   ns ← attribute.get_instances `monotonic,
+   asms ← local_context,
+   rs ← find_lemma asms t ns,
+   rs.for_each (λ h, infer_type h >>= trace),
+   () <$ rs.any_of (λ law, tactic.refine $ to_pexpr law)
+
+meta def mono := mono_aux
+
 /-- transforms a goal of the form `f x ≼ f y` into `x ≤ y` using lemmas
     marked as `monotonic`.
 
@@ -486,7 +482,10 @@ do gs ← get_goals,
 meta def ac_mono_aux (cfg : mono_cfg := { mono_cfg . })
 : tactic unit :=
 hide_meta_vars $ λ asms,
-do (l,r,id_rs,g) ← target >>= instantiate_mvars >>= monotonicity_goal cfg <|> fail "monotonic context not found",
+do (l,r,id_rs,g) ← target >>=
+                 instantiate_mvars >>=
+                 ac_monotonicity_goal cfg
+             <|> fail "monotonic context not found",
    ns ← attribute.get_instances `monotonic,
    p ← mk_pattern g,
    rules ← find_rule asms ns p <|> fail "no applicable rules found",
