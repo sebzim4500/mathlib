@@ -417,7 +417,7 @@ begin
     { unfold head, rw [← h,head_succ' n _ x_approx x_consistent] },
     introv h',
     congr, rw h,
-    transitivity y, apply h',
+    transitivity a', apply h',
     symmetry, apply cast_heq, },
 end
 

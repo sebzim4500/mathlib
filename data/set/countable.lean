@@ -137,9 +137,6 @@ have {t | finite t ∧ t ⊆ s } ⊆
           set.ext $ assume x,
           begin
             simp [eq.symm, iff_def, or_imp_distrib, has] {contextual:=tt},
-            constructor,
-            exact assume hxs, or.imp_right (assume hxt', ⟨hxs, hxt'⟩),
-            exact assume hxs hxt', ⟨hxs, or.inr hxt'⟩,
           end⟩ }
   end,
 by haveI enc := h.to_encodable; exact

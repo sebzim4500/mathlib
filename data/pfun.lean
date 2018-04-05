@@ -111,7 +111,7 @@ instance : is_lawful_monad roption :=
 
 instance : monad_fail roption :=
 { fail := λ_ _, roption.none, ..roption.monad }
-
+open function
 lemma assert_if_neg {p : Prop}
   (x : p → roption α)
   (h : ¬ p)
@@ -122,7 +122,7 @@ by { dsimp [assert,roption.none],
        exact h h' },
      congr,
      repeat { rw this <|> apply hfunext },
-     intros, cases y, }
+     intros h h', cases h', }
 
 lemma assert_if_pos {p : Prop}
   (x : p → roption α)
