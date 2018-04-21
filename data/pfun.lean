@@ -182,6 +182,11 @@ theorem assert_defined {p : Prop} {f : p → roption α} :
 theorem bind_defined {f : roption α} {g : α → roption β} :
   ∀ (h : f.dom), (g (f.get h)).dom → (roption.bind f g).dom := assert_defined
 
+@[simp]
+lemma get_return {α} (x : α) (H)
+: get (return x) H = x :=
+rfl
+
 end roption
 
 /-- `pfun α β`, or `α →. β`, is the type of partial functions from
