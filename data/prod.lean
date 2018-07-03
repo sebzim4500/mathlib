@@ -7,6 +7,16 @@ Extends theory on products
 -/
 import tactic.ext
 
+import tactic.ext
+
+import tactic.ext
+
+import tactic.ext
+
+import tactic.ext
+
+import tactic.ext
+
 universes u v
 variables {α : Type u} {β : Type v}
 

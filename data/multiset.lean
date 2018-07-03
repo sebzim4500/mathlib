@@ -2228,6 +2228,9 @@ by simp [nodup_ext]
 theorem erase_dup_map_erase_dup_eq [decidable_eq β] (f : α → β) (s : multiset α) :
   erase_dup (map f (erase_dup s)) = erase_dup (map f s) := by simp [erase_dup_ext]
 
+theorem erase_dup_erase_dup [decidable_eq α] (s : multiset α) :
+  erase_dup (erase_dup s) = erase_dup s := by simp [erase_dup_ext]
+
 /- finset insert -/
 
 /-- `ndinsert a s` is the lift of the list `insert` operation. This operation
