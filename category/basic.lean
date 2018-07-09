@@ -89,6 +89,9 @@ variables {f : Type → Type v} [alternative f]
 @[simp] theorem guard_false {h : decidable false} :
   @guard f _ false h = failure := by simp [guard]
 
+def succeeds {α} (cmd : f α) : f bool :=
+(tt <$ cmd) <|> pure ff
+
 end alternative
 
 class is_comm_applicative (m : Type* → Type*) [applicative m] extends is_lawful_applicative m : Prop :=
