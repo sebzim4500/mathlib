@@ -1,5 +1,5 @@
 
-import tactic
+import tactic.monotonicity.interactive
 
 import algebra.ordered_ring
 
@@ -30,7 +30,6 @@ mono_function.assoc <$> elaborate x
 | (mono_function.assoc_comm x y) :=
 mono_function.assoc_comm <$> elaborate x
                          <*> elaborate y
-
 
 meta instance elaborable_mono_function : elaborable (mono_function ff) mono_function :=
 ⟨ mono_function.elaborate ⟩
@@ -85,7 +84,6 @@ lemma bar
 : 1 + 3 + 2 + 6 ≤ 4 + 2 + 1 + 5 :=
 begin
   ac_mono,
-  apply h
 end
 
 lemma bar'
@@ -95,10 +93,25 @@ lemma bar'
 begin
   transitivity (1 + 3 + 2 - 5 : ℤ),
   ac_mono,
-  apply h',
   ac_mono,
-  ac_mono,
-  apply h
+end
+
+example (x y z : ℤ)
+  (h : 3 ≤ (4 : ℤ))
+  (h' : z ≤ (y : ℤ))
+: (1 + 3 + x) - y ≤ (1 + 4 + x : ℤ) - z :=
+begin
+  transitivity (1 + 3 + x - z : ℤ),
+  mono, mono,
+  mono, mono,
+end
+
+example (x y z : ℤ)
+  (h : 3 ≤ (4 : ℤ))
+  (h' : z ≤ (y : ℤ))
+: (1 + 3 + x) - y ≤ (1 + 4 + x : ℤ) - z :=
+begin
+  ac_mono, mono*
 end
 
 @[simp]
@@ -111,7 +124,6 @@ def list.le' {α : Type*} [has_le α] : list α → list α → Prop
 instance list_has_le {α : Type*} [has_le α] : has_le (list α) :=
 ⟨ list.le' ⟩
 
-@[refl]
 lemma list.le_refl {α : Type*} [preorder α] {xs : list α}
 : xs ≤ xs :=
 begin
@@ -134,7 +146,7 @@ begin
   ; cases ys with y ys
   ; cases zs with z zs
   ; try { cases h ; cases h' ; done },
-  { refl },
+  { apply list.le_refl },
   { simp [has_le.le,list.le],
     split,
     apply le_trans h.left h'.left,
@@ -148,7 +160,7 @@ lemma list_le_mono_left {α : Type*} [preorder α] {xs ys zs : list α}
 begin
   revert ys,
   induction xs with x xs ; intros ys h,
-  { cases ys, refl, cases h },
+  { cases ys, apply list.le_refl, cases h },
   { cases ys with y ys, cases h, simp [has_le.le,list.le] at *,
     revert h, apply and.imp_right,
     apply xs_ih }
@@ -161,7 +173,7 @@ lemma list_le_mono_right {α : Type*} [preorder α] {xs ys zs : list α}
 begin
   revert ys zs,
   induction xs with x xs ; intros ys zs h,
-  { cases ys, { simp }, cases h  },
+  { cases ys, { simp, apply list.le_refl }, cases h  },
   { cases ys with y ys, cases h, simp [has_le.le,list.le] at *,
     suffices : list.le' ((zs ++ [x]) ++ xs) ((zs ++ [y]) ++ ys),
     { refine cast _ this, simp, },
@@ -179,7 +191,6 @@ lemma bar_bar'
 : [] ++ [3] ++ [2] ++ [2] ≤ [1] ++ [5] ++ ([4] ++ [2]) :=
 begin
   ac_mono,
-  apply h
 end
 
 lemma bar_bar''
@@ -187,7 +198,6 @@ lemma bar_bar''
 : [1] ++ ([3] ++ [2]) ++ [2] ≤ [1] ++ [5] ++ ([4] ++ []) :=
 begin
   ac_mono,
-  apply h,
 end
 
 lemma bar_bar
@@ -195,7 +205,6 @@ lemma bar_bar
 : [1] ++ [3] ++ [2] ++ [2] ≤ [1] ++ [5] ++ ([4] ++ [2]) :=
 begin
   ac_mono,
-  apply h
 end
 
 def P (x : ℕ) := 7 ≤ x
@@ -219,7 +228,6 @@ example (x y z : ℕ)
 begin
   ac_mono,
   ac_mono,
-  apply h,
 end
 
 example (x y z : ℕ)
@@ -228,7 +236,6 @@ example (x y z : ℕ)
 begin
   ac_mono,
   ac_mono,
-  apply h,
 end
 
 example (x y z k m n : ℤ)
@@ -239,7 +246,6 @@ begin
   ac_mono,
   ac_mono,
   ac_mono,
-  solve_by_elim
 end
 
 example (x y z k m n : ℕ)
@@ -257,13 +263,13 @@ example (x y z k m n : ℕ)
   (h₀ : z ≥ 0)
   (h₁ : x ≤ y)
 : (m + x + n) * z + k ≤ z * (y + n + m) + k :=
-by  ac_mono* h₁
+by {  ac_mono* h₁ }
 
 example (x y z k m n : ℕ)
   (h₀ : z ≥ 0)
   (h₁ : m + x + n ≤ y + n + m)
 : (m + x + n) * z + k ≤ z * (y + n + m) + k :=
-by ac_mono* h₁
+by { ac_mono* h₁ }
 
 example (x y z k m n : ℕ)
   (h₀ : z ≥ 0)
@@ -276,14 +282,24 @@ begin
   ac_refl,
 end
 
-example (x y z k m n : ℕ)
+example (x y z k m n : ℤ)
   (h₁ : x ≤ y)
 : true :=
 begin
   have : (m + x + n) * z + k ≤ z * (y + n + m) + k,
   { ac_mono,
-    success_if_fail { ac_mono }, -- can't prove 0 ≤ z
+    success_if_fail { ac_mono },
     admit },
+  trivial
+end
+
+example (x y z k m n : ℕ)
+  (h₁ : x ≤ y)
+: true :=
+begin
+  have : (m + x + n) * z + k ≤ z * (y + n + m) + k,
+  { ac_mono*,
+    change 0 ≤ z, apply nat.zero_le, },
   trivial
 end
 
@@ -341,35 +357,75 @@ do t ← target, guard_expr_eq' t p
 
 end tactic.interactive
 
--- example {x y z : ℕ} : y + x ≤ y + z :=
--- begin
---   mono,
---   guard_target x ≤ z,
---   admit,
--- end
+example {x y z : ℕ} : true :=
+begin
+  have : y + x ≤ y + z,
+  { mono,
+    guard_target' x ≤ z,
+    admit },
+  trivial
+end
 
 example {x y z : ℕ} : true :=
 begin
   suffices : x + y ≤ z + y, trivial,
   mono,
-  -- (do guard_target ```(x ≤ z)),
-  -- (do target >>= instantiate_mvars >>= tactic.change),
   guard_target' x ≤ z,
   admit,
 end
 
--- example {x y z w : ℕ} : x + y ≤ z + w :=
--- begin
---   mono,
---   guard_target x ≤ z, admit,
---   guard_target y ≤ w, admit,
---   admit,
--- end
+example {x y z w : ℕ} : true :=
+begin
+  have : x + y ≤ z + w,
+  { mono,
+    guard_target' x ≤ z, admit,
+    guard_target' y ≤ w, admit },
+  trivial
+end
 
--- example {x y z w : ℕ} : x * y ≤ z * w :=
--- begin
---   mono,
---   guard_target x ≤ z, admit,
---   guard_target x ≤ z, admit,
---   admit,
--- end
+example {x y z w : ℕ} : true :=
+begin
+  have : x * y ≤ z * w,
+  { mono using [0 ≤ z,0 ≤ y],
+    { guard_target 0 ≤ z, admit },
+    { guard_target 0 ≤ y, admit },
+    guard_target' x ≤ z, admit,
+    guard_target' y ≤ w, admit },
+  trivial
+end
+
+example {x y z w : Prop} : true :=
+begin
+  have : x ∧ y → z ∧ w,
+  { mono,
+    guard_target' x → z, admit,
+    guard_target' y → w, admit },
+  trivial
+end
+
+example {x y z w : Prop} : true :=
+begin
+  have : x ∨ y → z ∨ w,
+  { mono,
+    guard_target' x → z, admit,
+    guard_target' y → w, admit },
+  trivial
+end
+
+example {x y z w : ℤ} : true :=
+begin
+  suffices : x + y < w + z, trivial,
+  have : x < w, admit,
+  have : y ≤ z, admit,
+  mono right,
+end
+
+example {x y z w : ℤ} : true :=
+begin
+  suffices : x * y < w * z, trivial,
+  have : x < w, admit,
+  have : y ≤ z, admit,
+  mono right,
+  { guard_target' 0 < y, admit },
+  { guard_target' 0 ≤ w, admit },
+end

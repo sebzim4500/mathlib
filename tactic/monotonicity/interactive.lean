@@ -1,12 +1,5 @@
 
--- import util.algebra.group -- do not delete: imports instances
-
--- import util.data.list
--- import util.data.ulift_t
--- import util.meta.expr
--- import util.meta.tactic.basic
--- import util.control.applicative
-
+import tactic.monotonicity.basic
 import category.basic
 import category.traversable
 import category.traversable.derive
@@ -14,7 +7,7 @@ import category.traversable.derive
 import data.dlist
 import logic.basic
 import meta.expr
-import .basic
+import tactic.basic
 
 variables {a b c p : Prop}
 
@@ -26,9 +19,6 @@ open tactic
 
 local postfix `?`:9001 := optional
 local postfix *:9001 := many
-
-structure mono_cfg :=
-  (unify := ff)
 
 meta inductive mono_function (elab : bool := tt)
  | non_assoc : expr elab → list (expr elab) → list (expr elab) → mono_function
@@ -101,12 +91,16 @@ apply_auto_param
 <|>
 solve_by_elim { restr_hyp_set := asms }
 <|>
+reflexivity
+<|>
 return ()
 
-private meta def match_rule_head (p : expr)
+-- parameter (solve_head : bool)
+
+private meta def match_rule_head  (p : expr)
 : list expr → expr → expr → tactic expr
  | vs e t :=
-(unify t p >> mmap' unify_with_instance vs.tail >> instantiate_mvars e)
+(unify t p >> mmap' unify_with_instance vs >> instantiate_mvars e)
 <|>
 do (expr.pi _ _ d b) ← return t | failed,
    v ← mk_meta_var d,
@@ -118,34 +112,11 @@ do v ← mk_meta_var t,
    pi_head (b.instantiate_var v)
 | e := return e
 
-def last_two {α : Type*} : list α → option (α × α)
-| [] := none
-| [x] := none
-| (x₀ :: x₁ :: xs) := last_two (x₁ :: xs) <|> some (x₀, x₁)
-
-meta def compare (e₀ e₁ : expr) : tactic unit := do
-if opt.unify then do
-guard (¬ e₀.is_mvar ∧ ¬ e₁.is_mvar),
-unify e₀ e₁
-else is_def_eq e₀ e₁
-
-meta def find_one_difference
-: list expr → list expr → tactic (list expr × expr × expr × list expr)
- | (x :: xs) (y :: ys) :=
-   do c ← try_core (compare x y),
-      if c.is_some
-      then prod.map (cons x) id <$> find_one_difference xs ys
-      else do
-        guard (xs.length = ys.length),
-        mzip_with' compare xs ys,
-        return ([],x,y,xs)
- | xs ys := fail format!"find_one_difference: {xs}, {ys}"
-
 meta def delete_expr (e : expr)
 : list expr → tactic (option (list expr))
  | [] := return none
  | (x :: xs) :=
-(compare e x >> return (some xs))
+(compare opt e x >> return (some xs))
 <|>
 (map (cons x) <$> delete_expr xs)
 
@@ -173,7 +144,7 @@ do (s',l',r') ← match_ac' l r,
 meta def match_prefix
 : list expr → list expr → tactic (list expr × list expr × list expr)
 | (x :: xs) (y :: ys) :=
-  (do compare x y,
+  (do compare opt x y,
       prod.map ((::) x) id <$> match_prefix xs ys)
 <|> return ([],x :: xs,y :: ys)
 | xs ys := return ([],xs,ys)
@@ -260,7 +231,7 @@ do (full_f,ls,rs) ← same_function l r,
      let suff' := fold_assoc1 f suff,
      return (l',r',l_id ++ r_id,mono_function.assoc f pre' suff')
    else do -- ¬ a
-     (xs₀,x₀,x₁,xs₁) ← find_one_difference ls rs,
+     (xs₀,x₀,x₁,xs₁) ← find_one_difference opt ls rs,
      return (x₀,x₁,[],mono_function.non_assoc full_f xs₀ xs₁)
 
 meta def parse_ac_mono_function' (l r : pexpr) :=
@@ -413,6 +384,9 @@ lemma apply_rel {α : Sort u} (R : α → α → Sort v) {x y : α}
 : R x' y' :=
 by { rw [← hx,← hy], apply h }
 
+meta def ac_refine (e : expr) : tactic unit :=
+refine ``(eq.mp _ %%e) ; ac_refl
+
 meta def one_line (e : expr) : tactic format :=
 do lbl ← pp e,
    asm ← infer_type e >>= pp,
@@ -424,32 +398,51 @@ do let vs := e.list_meta_vars,
    let r := e.get_app_fn.const_name,
    return format!"{r}:\n{format.join ts}"
 
-meta def generalize_meta_vars : tactic (expr × list expr × expr) :=
-do tgt ← target >>= instantiate_mvars,
-   tactic.change tgt,
-   let vs := tgt.list_meta_vars,
-   ⟨(v,tgt'), _⟩ ← solve_aux tgt
-     (do vs' ← mmap (λ v, tactic.generalize v `x >> intro1) vs.reverse,
-         v ← mk_mvar,
-         h ← note `h none v,
-         tactic.revert h,
-         n ← revert_lst vs',
-         prod.mk v <$> target),
-   return (v,vs,tgt')
+-- meta def generalize_meta_vars : tactic (expr × list expr × expr) :=
+-- do tgt ← target >>= instantiate_mvars,
+--    tactic.change tgt,
+--    let vs := tgt.list_meta_vars,
+--    ⟨(v,tgt'), _⟩ ← solve_aux tgt
+--      (do vs' ← mmap (λ v,
+--              do h ← get_unused_name `h,
+--                 generalize h () v,
+--                 return (h,v) ) vs.reverse,
+--          v ← mk_mvar,
+--          h ← note `h none v,
+--          tactic.revert h,
+--          -- n ← revert_lst vs',
+--          prod.mk v <$> target),
+--    return (v,vs,tgt')
 
 open monad
 
-private meta def hide_meta_vars (tac : list expr → itactic) : tactic unit :=
-do (v,args,t) ← generalize_meta_vars,
-   h ← assert `h t,
-   solve1 (do
-     ctx ← local_context,
-     tactic.intron args.length,
-     x ← intro1,
-     tac ctx,
-     tactic.exact x),
-   tactic.apply (h.mk_app args),
-   tactic.clear h
+/-- tactic-facing function, similar to `interactive.tactic.generalize` with the
+exception that meta variables -/
+meta def generalize' (h : name) (v : expr) (x : name) : tactic (expr × expr) :=
+do tgt ← target,
+   t ← infer_type v,
+   tgt' ← do {
+     ⟨tgt', _⟩ ← solve_aux tgt (tactic.generalize v x >> target),
+     to_expr ``(λ y : %%t, Π x, y = x → %%(tgt'.binding_body.lift_vars 0 1))
+     } <|> to_expr ``(λ y : %%t, Π x, %%v = x → %%tgt),
+   t ← head_beta (tgt' v) >>= assert h,
+   swap,
+   r ← mk_eq_refl v,
+   solve1 $ tactic.exact (t v r),
+   prod.mk <$> tactic.intro x <*> tactic.intro h
+
+private meta def hide_meta_vars (tac : list expr → tactic unit) : tactic unit :=
+focus1 $
+do tgt ← target >>= instantiate_mvars,
+   tactic.change tgt,
+   ctx ← local_context,
+   let vs := tgt.list_meta_vars,
+   vs' ← mmap (λ v,
+             do h ← get_unused_name `h,
+                x ← get_unused_name `x,
+                prod.snd <$> generalize' h v x) vs,
+     tac ctx;
+     vs'.mmap' (try ∘ tactic.subst)
 
 meta def hide_meta_vars' (tac : itactic) : itactic :=
 hide_meta_vars $ λ _, tac
@@ -461,17 +454,65 @@ do gs ← get_goals,
    set_goals [v],
    target >>= instantiate_mvars >>= tactic.change,
    tac, done,
-   set_goals gs
+   set_goals $ gs
 
-meta def mono_aux (cfg : mono_cfg := { mono_cfg . }) : tactic unit :=
+def list.minimum_on {α β} [decidable_linear_order β] (f : α → β) : list α → list α
+| [] := []
+| (x :: xs) := prod.snd $ xs.foldl (λ ⟨k,a⟩ b,
+     let k' := f b in
+     if k < k' then (k,a)
+     else if k' < k then (k', [b])
+     else (k,b :: a)) (f x, [x])
+
+open format mono_selection
+
+meta def best_match {β} (xs : list expr) (tac : expr → tactic β) : tactic unit :=
 do t ← target,
-   ns ← attribute.get_instances `monotonic,
+   xs ← xs.mmap (λ x,
+     try_core $ prod.mk x <$> solve_aux t (tac x >> get_goals)),
+   let xs := xs.filter_map id,
+   let r := list.minimum_on (list.length ∘ prod.fst ∘ prod.snd) xs,
+   match r with
+   | [(_,gs,pr)] :=  tactic.exact pr >> set_goals gs
+   | [] := fail "no good match found"
+   | _ :=
+     do lmms ← r.mmap (λ ⟨l,gs,_⟩,
+          do ts ← gs.mmap infer_type,
+             msg ← ts.mmap pp,
+             pure $ foldl compose "\n\n" (list.intersperse "\n" $ to_fmt l.get_app_fn.const_name :: msg)),
+        let msg := foldl compose "" lmms,
+        fail format!"ambiguous match: {msg}\n\nTip: try asserting a side condition to distinguish between the lemmas"
+   end
+
+meta def mono_aux (dir : parse side) (cfg : mono_cfg := { mono_cfg . }) :
+  tactic unit :=
+do t ← target,
+   ns ← get_monotonicity_lemmas dir,
    asms ← local_context,
    rs ← find_lemma asms t ns,
-   rs.for_each (λ h, infer_type h >>= trace),
-   () <$ rs.any_of (λ law, tactic.refine $ to_pexpr law)
+   focus1 $ () <$ best_match rs (λ law, tactic.refine $ to_pexpr law)
 
-meta def mono := mono_aux
+/--
+- `mono` applies a monotonicity rule.
+- `mono*` applies monotonicity rules repetitively.
+- `mono using x ≤ y` or `mono using [0 ≤ x,0 ≤ y]` creates an assertion for the listed
+  propositions. Those help to select the right monotonicity rule.
+- `mono left` or `mono right` is useful when proving strict orderings:
+   for `x + y < w + z` could be broken down into either
+    - left:  `x ≤ w` and `y < z` or
+    - right: `x < w` and `y ≤ z`
+-/
+meta def mono (many : parse (tk "*")?) (dir : parse side)
+  (hyps : parse $ tk "using" *> pexpr_list_or_texpr <|> pure [])
+  (cfg : mono_cfg := { mono_cfg . }) :
+  tactic unit :=
+do hyps ← hyps.mmap (λ p, to_expr p >>= mk_meta_var),
+   hyps.mmap' (λ pr, do h ← get_unused_name `h, note h none pr),
+   if many.is_some
+     then repeat $ mono_aux dir cfg
+     else mono_aux dir cfg,
+   gs ← get_goals,
+   set_goals $ hyps ++ gs
 
 /-- transforms a goal of the form `f x ≼ f y` into `x ≤ y` using lemmas
     marked as `monotonic`.
@@ -479,19 +520,20 @@ meta def mono := mono_aux
     Special care is taken when `f` is the repeated application of an
     associative operator and if the operator is commutative
 -/
-meta def ac_mono_aux (cfg : mono_cfg := { mono_cfg . })
-: tactic unit :=
+meta def ac_mono_aux (cfg : mono_cfg := { mono_cfg . }) :
+  tactic unit :=
 hide_meta_vars $ λ asms,
-do (l,r,id_rs,g) ← target >>=
+do try `[dunfold has_sub.sub algebra.sub],
+   (l,r,id_rs,g) ← target >>=
                  instantiate_mvars >>=
                  ac_monotonicity_goal cfg
              <|> fail "monotonic context not found",
-   ns ← attribute.get_instances `monotonic,
+   ns ← get_monotonicity_lemmas both,
    p ← mk_pattern g,
    rules ← find_rule asms ns p <|> fail "no applicable rules found",
    when (rules = []) (fail "no applicable rules found"),
    err ← format.join <$> mmap side_conditions rules,
-   focus1 $ any_of rules (λ rule, do
+   focus1 $ best_match rules (λ rule, do
      t₀ ← mk_meta_var `(Prop),
      v₀ ← mk_meta_var t₀,
      t₁ ← mk_meta_var `(Prop),
@@ -572,59 +614,27 @@ meta def ac_mono (rep : parse arity) :
          parse assert_or_rule? →
          opt_param mono_cfg { mono_cfg . } →
          tactic unit
- | none opt := repeat_or_not rep (ac_mono_aux opt) none
+ | none opt := focus1 $ repeat_or_not rep (ac_mono_aux opt) none
  | (some (inl h)) opt :=
-do repeat_or_not rep (ac_mono_aux opt) (tactic.refine h)
+do focus1 $ repeat_or_not rep (ac_mono_aux opt) (some $ done <|> to_expr h >>= ac_refine)
  | (some (inr t)) opt :=
 do h ← i_to_expr t >>= assert `h,
    tactic.swap,
-   repeat_or_not rep (ac_mono_aux opt) (tactic.refine $ to_pexpr h)
+   focus1 $ repeat_or_not rep (ac_mono_aux opt) (some $ done <|> ac_refine h)
 
-meta def match_imp : expr → tactic (expr × expr)
- | `(%%e₀ → %%e₁) :=
-   do guard (¬ e₁.has_var),
-      return (e₀,e₁)
- | _ := failed
-
-meta def monotoncity.check_rel (xs : list expr) (l r : expr) : tactic unit :=
-do (_,x,y,_) ← find_one_difference { mono_cfg . }
-               l.get_app_args r.get_app_args,
-   when (¬ l.get_app_fn = r.get_app_fn)
-     (fail format!"{l} and {r} should be the f x and f y for some f"),
-   t ← infer_type (list.ilast xs),
-   (l',r') ← last_two t.get_app_args
-     <|> match_imp t
-     <|> fail format!"expecting assumption {t} to be a relation R x y",
-   when (¬ x.is_local_constant) (fail format!"expecting a bound variable: {x}"),
-   when (¬ y.is_local_constant) (fail format!"expecting a bound variable: {y}"),
-   when ([l',r'] ≠ [x,y] ∧ [l',r'] ≠ [y,x])
-     (fail "assumption {t} should be relating variables {l'} and {r'}"),
-   return ()
-
-meta def monotoncity.check_imp (x₀ : expr) : list expr → tactic unit
-| (x₁ :: xs) := infer_type x₁ >>= monotoncity.check_rel xs.reverse x₀
-| _ := fail "monotoncity.check_imp"
-
-meta def monotoncity.check (lm_n : name) (prio : ℕ) (persistent : bool) : tactic unit :=
-do lm ← mk_const lm_n,
-   lm_t ← infer_type lm,
-   (xs,h) ← mk_local_pis lm_t,
-   x ← try_core (monotoncity.check_imp h xs.reverse),
-   match x with
-    | (some x) :=
-      (do (l,r) ← last_two h.get_app_args,
-          monotoncity.check_rel xs l r) <|> return x
-    | none :=
-      do (l,r) ← last_two h.get_app_args <|> fail format!"expecting: R x y\nactual: {h}",
-         monotoncity.check_rel xs l r
-   end
-
-@[user_attribute]
-meta def monotonicity.attr : user_attribute :=
-{ name  := `monotonic
-, descr := "monotonicity of functions wrt relations: R₀ x y → R₁ (f x) (f y)"
-, after_set := some monotoncity.check  }
-
-attribute [monotonic] and.imp_right or.imp_right
+attribute [monotonic] and.imp or.imp
 
 end tactic.interactive
+open tactic
+
+example (x y : ℕ)
+  (h : x ≤ y)
+: true :=
+begin
+  (do v ← mk_mvar,
+      p ← to_expr ```(%%v + x ≤ y + %%v),
+      assert `h' p),
+  ac_mono h,
+  trivial,
+  exact 3
+end
