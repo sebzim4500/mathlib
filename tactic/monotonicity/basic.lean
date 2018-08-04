@@ -40,10 +40,11 @@ meta def find_one_difference
 
 end compare
 
-def last_two {α : Type*} : list α → option (α × α)
-| [] := none
-| [x] := none
-| (x₀ :: x₁ :: xs) := last_two (x₁ :: xs) <|> some (x₀, x₁)
+def last_two {α : Type*} (l : list α) : option (α × α) :=
+match l.reverse with
+| (x₁ :: x₀ :: _) := some (x₀, x₁)
+| _ := none
+end
 
 meta def match_imp : expr → tactic (expr × expr)
  | `(%%e₀ → %%e₁) :=
