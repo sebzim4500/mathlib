@@ -26,6 +26,10 @@ end⟩
 
 namespace sum
 
+def map {α α' β β'} (f : α → α') (g : β → β')  : α ⊕ β → α' ⊕ β'
+| (sum.inl x) := sum.inl (f x)
+| (sum.inr x) := sum.inr (g x)
+
 @[simp] theorem inl.inj_iff {a b} : (inl a : α ⊕ β) = inl b ↔ a = b :=
 ⟨inl.inj, congr_arg _⟩
 
