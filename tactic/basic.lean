@@ -511,8 +511,6 @@ do t' ← to_expr t,
 
 open expr
 
-#check abstract_local
-
 meta def add_prime : name → name
 | (name.mk_string s p) := name.mk_string (s ++ "'") p
 | n := (name.mk_string "x'" n)
@@ -569,5 +567,7 @@ form `f ∘ g = h` for reasoning about higher-order functions.",
        add_decl $ declaration.thm lmm' lvls t' (pure pr),
        copy_attribute `simp lmm tt lmm',
        copy_attribute `functor_norm lmm tt lmm' }
+
+attribute [higher_order map_comp_pure] map_pure
 
 end tactic
