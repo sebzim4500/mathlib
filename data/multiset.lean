@@ -2843,6 +2843,12 @@ quotient.induction_on x
     simp [traverse,comp_traverse] with functor_norm;
     simp [(<$>),(∘)] with functor_norm)
 
+lemma traverse_eq_map_id {α β} (f : α → β) (x : multiset α) :
+  traverse (id.mk ∘ f) x = id.mk (f <$> x) :=
+quotient.induction_on x
+(by intro; simp [traverse] with functor_norm;
+    rw [traverse_eq_map_id]; refl)
+
 lemma map_traverse {G : Type* → Type*}
                [applicative G] [is_comm_applicative G]
                {α β γ : Type*}

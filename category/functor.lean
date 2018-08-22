@@ -40,6 +40,10 @@ end functor
 
 def id.mk {α : Sort u} : α → id α := id
 
+@[simp]
+lemma map_id_mk {α β : Sort*} (f : α → β) (x : α) :
+  f <$> id.mk x = id.mk (f x) := rfl
+
 namespace functor
 
 /-- `functor.comp` is a wrapper around `function.comp` for types.

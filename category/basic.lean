@@ -16,7 +16,7 @@ variables {f : Type u → Type v} [functor f] [is_lawful_functor f]
 
 run_cmd mk_simp_attr `functor_norm
 
-@[functor_norm] protected theorem map_map (m : α → β) (g : β → γ) (x : f α) :
+@[functor_norm] protected theorem functor.map_map (m : α → β) (g : β → γ) (x : f α) :
   g <$> (m <$> x) = (g ∘ m) <$> x :=
 (comp_map _ _ _).symm
 
@@ -124,3 +124,6 @@ calc f <$> a <*> b = (λp:α×β, f p.1 p.2) <$> (prod.mk <$> a <*> b) :
   ... = (λb a, f a b) <$> b <*> a :
     by rw [is_comm_applicative.commutative_prod];
         simp [seq_map_assoc, map_seq, seq_assoc, seq_pure, map_map]
+
+class is_idempotent_applicative (m : Type* → Type*) [applicative m] extends is_lawful_applicative m : Prop :=
+(idempotent : ∀{α} (a : m α), prod.mk <$> a <*> a = (λa, (a, a)) <$> a)
