@@ -55,6 +55,9 @@ end lemmas
 instance : is_comm_applicative id :=
 by refine { .. }; intros; refl
 
+instance : is_idempotent_applicative id :=
+by refine { .. }; intros; refl
+
 namespace comp
 
 open function (hiding comp)
@@ -130,6 +133,15 @@ by { refine { .. @comp.is_lawful_applicative f g _ _ _ _, .. },
      rw [commutative_map],
      simp [comp.mk,flip,(∘)] with functor_norm,
      congr, funext, rw [commutative_map], congr }
+
+open is_idempotent_applicative
+
+instance {f : Type u → Type w} {g : Type v → Type u}
+  [applicative f] [applicative g]
+  [is_idempotent_applicative f] [is_idempotent_applicative g] :
+  is_idempotent_applicative (comp f g) :=
+by constructor; intros; apply comp.ext;
+     simp [idempotent_map,dup] with functor_norm
 
 end comp
 open functor

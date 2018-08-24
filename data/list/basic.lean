@@ -2428,6 +2428,9 @@ by simp [insert.def, h]
 @[simp] theorem insert_of_not_mem {a : α} {l : list α} (h : a ∉ l) : insert a l = a :: l :=
 by simp [insert.def, h]
 
+@[simp] theorem insert_cons_self {a : α} {l : list α} : insert a (a :: l) = a :: l :=
+by simp [insert.def]
+
 @[simp] theorem mem_insert_iff {a b : α} {l : list α} : a ∈ insert b l ↔ a = b ∨ a ∈ l :=
 begin
   by_cases h' : b ∈ l; simp [h'],
@@ -2594,7 +2597,7 @@ theorem diff_sublist_of_sublist : ∀ {l₁ l₂ l₃: list α}, l₁ <+ l₂ �
 | l₁ l₂ (a::l₃) h := by simp
   [diff_cons, diff_sublist_of_sublist (erase_sublist_erase _ h)]
 
-theorem erase_diff_erase_sublist_of_sublist {a : α} : ∀ {l₁ l₂ : list α}, 
+theorem erase_diff_erase_sublist_of_sublist {a : α} : ∀ {l₁ l₂ : list α},
   l₁ <+ l₂ → (l₂.erase a).diff (l₁.erase a) <+ l₂.diff l₁
 | []      l₂ h := by simp [erase_sublist]
 | (b::l₁) l₂ h := if heq : b = a then by simp [heq]

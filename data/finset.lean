@@ -640,6 +640,10 @@ mem_erase_dup
   to_finset (a :: s) = insert a (to_finset s) :=
 finset.eq_of_veq erase_dup_cons
 
+@[simp] lemma to_finset_ndinsert (a : α) (s : multiset α) :
+  to_finset (ndinsert a s) = insert a (to_finset s) :=
+finset.eq_of_veq erase_dup_ndinsert
+
 end multiset
 
 namespace list

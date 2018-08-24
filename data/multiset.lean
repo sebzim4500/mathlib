@@ -2274,8 +2274,15 @@ theorem erase_dup_cons {a : α} {s : multiset α} :
   erase_dup (a::s) = ndinsert a (erase_dup s) :=
 by by_cases a ∈ s; simp [h]
 
+theorem erase_dup_ndinsert {a : α} {s : multiset α} :
+  erase_dup (ndinsert a s) = ndinsert a (erase_dup s) :=
+by by_cases a ∈ s; simp [h]
+
 theorem nodup_ndinsert (a : α) {s : multiset α} : nodup s → nodup (ndinsert a s) :=
 quot.induction_on s $ λ l, nodup_insert
+
+theorem ndinsert_cons (a : α) {s : multiset α} : ndinsert a (a :: s) = a :: s :=
+by simp
 
 theorem ndinsert_le {a : α} {s t : multiset α} : ndinsert a s ≤ t ↔ s ≤ t ∧ a ∈ t :=
 ⟨λ h, ⟨le_trans (le_ndinsert_self _ _) h, mem_of_le h (mem_ndinsert_self _ _)⟩,
@@ -2775,6 +2782,14 @@ lemma coe_list_cons_eq_cons_coe :
   flip ((∘) (coe : list β' → multiset β') ∘ @list.cons β') = flip multiset.cons ∘ (coe) :=
 by ext; simp! [flip]
 
+lemma coe_list_cons_eq_cons_coe' :
+  ((∘) (coe : list β' → multiset β') ∘ flip (@list.cons β')) = flip multiset.cons ∘ (coe) :=
+by ext; simp! [flip]
+
+-- lemma coe_list_cons_eq_cons_coe' :
+--   ((∘) (coe : list β' → multiset β') ∘ @list.cons β') = _ ∘ (coe) :=
+-- by ext; simp! [flip]
+
 lemma coe_traverse_cons (x : α') (xs : list α') :
   (coe : list β' → multiset β') <$> traverse f (x :: xs) =
   coe <$> traverse f (xs ++ [x]) :=
@@ -2824,6 +2839,25 @@ quotient.lift_beta _ _ _
 lemma map_comp_coe {α β} (h : α → β) :
   functor.map h ∘ coe = (coe ∘ functor.map h : list α → multiset β) :=
 by funext; simp [functor.map]
+
+lemma traverse_def {α β} (f : α → F β) (xs : list α) :
+  traverse f ⟦ xs ⟧ = coe <$> list.traverse f xs :=
+by refl
+
+@[simp]
+lemma traverse_cons  {α : Type*} {β : Type*} (x : α) (xs : multiset α) (f : α → F β) :
+  traverse f (x :: xs) = (::) <$> f x <*> traverse f xs :=
+quotient.induction_on xs $ λ xs,
+calc  traverse f (x :: ⟦xs⟧)
+    = traverse f (⟦x :: xs⟧)              : by simp
+... = coe <$> list.traverse f (x :: xs)  : by simp [traverse];refl
+... = coe <$> (list.cons <$> f x <*> list.traverse f xs)        : by refl
+... = coe <$> (flip list.cons <$> list.traverse f xs <*> f x)   : by rw is_comm_applicative.commutative_map
+... = ((∘) coe ∘ flip list.cons) <$> list.traverse f xs <*> f x : by { simp with functor_norm, }
+... = (flip cons ∘ coe) <$> list.traverse f xs <*> f x          : by rw coe_list_cons_eq_cons_coe'
+... = cons <$> f x <*> multiset.traverse f ⟦xs⟧                  : by { rw [traverse_def,is_comm_applicative.commutative_map (f x)], simp with functor_norm, }
+
+#check @traverse_cons
 
 lemma id_traverse {α : Type*} (x : multiset α) :
   traverse id.mk x = x :=

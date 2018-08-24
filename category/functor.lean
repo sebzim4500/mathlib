@@ -5,7 +5,7 @@ Author: Simon Hudon
 
 Standard identity and composition functors
 -/
-import tactic.ext tactic.cache category.basic
+import tactic.ext tactic.cache category.basic logic.function
 
 universe variables u v w
 
@@ -40,11 +40,26 @@ end functor
 
 def id.mk {α : Sort u} : α → id α := id
 
+def id.run {α : Sort u} : id α → α := id
+
 @[simp]
 lemma map_id_mk {α β : Sort*} (f : α → β) (x : α) :
   f <$> id.mk x = id.mk (f x) := rfl
 
 namespace functor
+
+lemma eq_of_injective_of_eq {F} [functor F] [is_lawful_functor F]
+  {α β} [inhabited α] (f : α → β) {x y : F α}
+  (Hf : function.injective f)
+  (Heq : f <$> x = f <$> y) :
+  x = y :=
+begin
+  rw function.injective_iff_has_left_inverse at Hf,
+  cases Hf with g Hinv,
+  have : g <$> f <$> x = g <$> f <$> y, simp *,
+  simp [functor.map_map,function.id_of_left_inverse Hinv] at this,
+  exact this
+end
 
 /-- `functor.comp` is a wrapper around `function.comp` for types.
     It prevents Lean's type class resolution mechanism from trying

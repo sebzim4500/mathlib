@@ -120,10 +120,23 @@ lemma is_comm_applicative.commutative_map
   {α β γ} (a : m α) (b : m β) {f : α → β → γ} :
   f <$> a <*> b = flip f <$> b <*> a :=
 calc f <$> a <*> b = (λp:α×β, f p.1 p.2) <$> (prod.mk <$> a <*> b) :
-    by simp [seq_map_assoc, map_seq, seq_assoc, seq_pure, map_map]
+    by simp [seq_map_assoc, map_seq, seq_assoc, seq_pure, functor.map_map]
   ... = (λb a, f a b) <$> b <*> a :
     by rw [is_comm_applicative.commutative_prod];
-        simp [seq_map_assoc, map_seq, seq_assoc, seq_pure, map_map]
+        simp [seq_map_assoc, map_seq, seq_assoc, seq_pure, functor.map_map]
 
-class is_idempotent_applicative (m : Type* → Type*) [applicative m] extends is_lawful_applicative m : Prop :=
-(idempotent : ∀{α} (a : m α), prod.mk <$> a <*> a = (λa, (a, a)) <$> a)
+class is_idempotent_applicative (m : Type* → Type*) [applicative m]
+extends is_comm_applicative m : Prop :=
+(idempotent_prod : ∀{α} (a : m α), prod.mk <$> a <*> a = (λa, (a, a)) <$> a)
+
+def dup {α β} (f : α → α → β) : α → β := λ (x : α), f x x
+
+open is_idempotent_applicative
+
+lemma is_idempotent_applicative.idempotent_map
+  {m : Type* → Type*} [applicative m] [is_idempotent_applicative m]
+  {α β} (a : m α) (f : α → α → β) :
+  f <$> a <*> a = dup f <$> a :=
+calc   f <$> a <*> a
+     = (λp:α×α, f p.1 p.2) <$> (prod.mk <$> a <*> a) : by simp with functor_norm
+...  = dup f <$> a                                   : by simp [idempotent_prod,dup] with functor_norm
