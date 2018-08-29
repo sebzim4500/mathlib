@@ -561,5 +561,15 @@ do let (e,n) := arg,
    tactic.clear asm,
    when rev.is_some (interactive.revert [n])
 
+meta def guard_expr_eq' (t : expr) (p : parse $ tk ":=" *> texpr) : tactic unit :=
+do e ← to_expr p, is_def_eq t e
+
+/--
+`guard_target t` fails if the target of the main goal is not `t`.
+We use this tactic for writing tests.
+-/
+meta def guard_target' (p : parse texpr) : tactic unit :=
+do t ← target, guard_expr_eq' t p
+
 end interactive
 end tactic
