@@ -55,7 +55,7 @@ begin
   -- deal with zero ring first
   by_cases h01 : (0 : R) = 1,
     exact hilbert_basis_zero_ring h01,
-  letI : nonzero_comm_ring R := comm_ring.nonzero_of_zero_ne_one h01,
+  letI : nonzero_comm_ring R := comm_ring.non_zero_of_zero_ne_one h01,
   let L : set R := set.range leading_coeff,
   have HL : is_ideal L := {
     zero_ := ⟨0,rfl⟩,
