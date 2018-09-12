@@ -47,14 +47,15 @@ end
 -- zero ring a special case so let's deal with it separately
 theorem hilbert_basis_zero_ring {R} [comm_ring R] (h : (0 : R) = 1) :
 is_noetherian_ring (polynomial R) :=
-ring.is_noetherian_of_zero_eq_one (by simp [h]) -- I need a way of checking equality
+ring.is_noetherian_of_zero_eq_one (_) -- I need a way of checking equality
 -- amongst polynomials
 
 theorem hilbert_basis {R} [comm_ring R] (hR : is_noetherian_ring R) : is_noetherian_ring (polynomial R) :=
 begin
   -- deal with zero ring first
   by_cases h01 : (0 : R) = 1,
-    
+    exact hilbert_basis_zero_ring h01,
+  letI : nonzero_comm_ring R := comm_ring.nonzero_of_zero_ne_one h01,
   let L : set R := set.range leading_coeff,
   have HL : is_ideal L := {
     zero_ := ⟨0,rfl⟩,
