@@ -47,8 +47,52 @@ end
 -- zero ring a special case so let's deal with it separately
 theorem hilbert_basis_zero_ring {R} [comm_ring R] (h : (0 : R) = 1) :
 is_noetherian_ring (polynomial R) :=
-ring.is_noetherian_of_zero_eq_one (_) -- I need a way of checking equality
--- amongst polynomials
+ring.is_noetherian_of_zero_eq_one $ (polynomial.ext _ _).2 $ λ n, by simp [h]
+
+theorem leading_term_aux {R} [nonzero_comm_ring R] {f g : polynomial R} (Hle : nat_degree f ≤ nat_degree g)
+  (Hf : f ≠ 0) (Hg : g ≠ 0) (Hh : leading_coeff f + leading_coeff g ≠ 0) :
+leading_coeff (f * X ^ (nat_degree g - nat_degree f) + g) = leading_coeff f + leading_coeff g :=
+begin
+  let h := f * X ^ (nat_degree g - nat_degree f) + g,
+  have Htemp : leading_coeff f * leading_coeff (X ^ (nat_degree g - nat_degree f)) ≠ 0,
+    rw [leading_coeff_X_pow,mul_one],
+    exact (λ h, Hf $ leading_coeff_eq_zero.1 h),
+  have Ha : leading_coeff f = leading_coeff (f * X ^ (nat_degree g - nat_degree f)),
+    rw [leading_coeff_mul' Htemp,leading_coeff_X_pow,mul_one],
+  convert leading_coeff_add_of_degree_eq _ _,
+    rw [degree_mul_eq' Htemp, degree_X_pow, degree_eq_nat_degree Hf,degree_eq_nat_degree Hg],
+    rw [←with_bot.coe_add,with_bot.coe_eq_coe],
+    exact nat.add_sub_cancel' Hle,
+  rwa [←Ha],
+end
+
+lemma leading_term_bdd_deg_ideal {R} [nonzero_comm_ring R] (I : set (polynomial R)) [is_submodule I] (n : ℕ) :
+submodule R R :=
+⟨{c : R | ∃ f, f ∈ I ∧ degree f ≤ n ∧ leading_coeff f = c},{
+  zero_ := ⟨0,is_submodule.zero,lattice.bot_le,rfl⟩,
+  add_ := λ a b ⟨f, Hf⟩ ⟨g, Hg⟩, begin
+    by_cases h0 : a + b = 0, rw h0, exact ⟨0,is_submodule.zero,lattice.bot_le,rfl⟩,
+    by_cases hf : f = 0, rw [←Hf.2.2, ←Hg.2.2, hf, leading_coeff_zero, zero_add],
+      exact ⟨g,Hg.1,Hg.2.1,rfl⟩,
+    by_cases hg : g = 0, rw [←Hf.2.2, ←Hg.2.2, hg, leading_coeff_zero, add_zero],
+      exact ⟨f,Hf.1,Hf.2.1,rfl⟩,
+    by_cases hd : nat_degree f ≤ nat_degree g,
+    { let h := f * X ^ (nat_degree g - nat_degree f) + g,
+      letI : module (polynomial R) (polynomial R) := by apply_instance,
+      letI : is_submodule I := _inst_2,
+      have HfX : f * X ^ (nat_degree g - nat_degree f) ∈ I :=
+        mul_comm (X ^ (nat_degree g - nat_degree f)) f ▸ is_submodule.smul ((@polynomial.X R _ _) ^ (nat_degree g - nat_degree f)) Hf.1,
+      have hI : h ∈ I := is_submodule.add (mul_comm ▸ is_submodule.smul ((@polynomial.X R _ _) ^ (nat_degree g - nat_degree f)) Hf.1) Hg.1,
+    -- prove deg h <= n
+      let htemp : leading_coeff h = a + b := Hf.2.2 ▸ Hg.2.2 ▸ leading_term_aux hd hf hg (Hf.2.2.symm ▸ Hg.2.2.symm ▸ h0),
+      exact ⟨h,begin end⟩,
+
+    },
+    sorry
+  end,
+  smul := sorry
+}⟩
+
 
 theorem hilbert_basis {R} [comm_ring R] (hR : is_noetherian_ring R) : is_noetherian_ring (polynomial R) :=
 begin
@@ -65,27 +109,24 @@ begin
       by_cases hg : g = 0, rw [←Hf, ←Hg, hg, leading_coeff_zero, add_zero], exact ⟨f,rfl⟩,
       by_cases hd : nat_degree f ≤ nat_degree g,
       { let h := f * X ^ (nat_degree g - nat_degree f) + g,
-        have Htemp : leading_coeff f * leading_coeff (X ^ (nat_degree g - nat_degree f)) ≠ 0,
-          rw [leading_coeff_X_pow,mul_one],
-          exact (λ h, hf $ leading_coeff_eq_zero.1 h),
-        have Ha : a = leading_coeff (f * X ^ (nat_degree g - nat_degree f)),
-          rw [leading_coeff_mul' Htemp,leading_coeff_X_pow,mul_one,Hf],
-        exact ⟨h, begin convert leading_coeff_add_of_degree_eq _ _, exact Hg.symm,
-                      rw degree_mul_eq' Htemp,
-                      rw degree_X_pow,
-                      rw degree_eq_nat_degree hf,
-                      rw degree_eq_nat_degree hg,
-                      rw ←with_bot.coe_add,
-                      rw with_bot.coe_eq_coe,
-                      exact nat.add_sub_cancel' hd,
-                    rwa [←Ha,Hg],
-                  end⟩,
-        
+        exact ⟨h, Hf ▸ Hg ▸ leading_term_aux hd hf hg (Hf.symm ▸ Hg.symm ▸ h0)⟩,
       },
-      sorry,
+      { let h := g * X ^ (nat_degree f - nat_degree g) + f,
+        exact ⟨h, Hg ▸ Hf ▸ add_comm (leading_coeff g) (leading_coeff f) ▸ leading_term_aux (le_of_lt $ lt_of_not_ge hd) hg hf (Hg.symm ▸ Hf.symm ▸ add_comm a b ▸ h0)⟩,
+      }
     end,
-    smul := sorry
+    smul := λ c r ⟨f,Hf⟩, begin
+      rw smul_eq_mul,
+      by_cases hcr : c * r = 0, rw hcr, exact ⟨0,rfl⟩,
+      exact ⟨(C c)*f,begin
+        rw leading_coeff_mul',
+          rw [Hf,leading_coeff_C],
+        rwa [Hf,leading_coeff_C],
+      end⟩
+    end,
   },
-  sorry,
+  cases (hR ⟨L,{..HL}⟩) with GL HGL, -- is there a better way?
+  sorry
 end
 
+#print is_fg
