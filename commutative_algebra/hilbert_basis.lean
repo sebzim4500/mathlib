@@ -49,6 +49,7 @@ theorem hilbert_basis_zero_ring {R} [comm_ring R] (h : (0 : R) = 1) :
 is_noetherian_ring (polynomial R) :=
 ring.is_noetherian_of_zero_eq_one $ (polynomial.ext _ _).2 $ λ n, by simp [h]
 
+-- giving up on WLOG
 theorem leading_term_aux {R} [nonzero_comm_ring R] {f g : polynomial R} (Hle : nat_degree f ≤ nat_degree g)
   (Hf : f ≠ 0) (Hg : g ≠ 0) (Hh : leading_coeff f + leading_coeff g ≠ 0) :
 leading_coeff (f * X ^ (nat_degree g - nat_degree f) + g) = leading_coeff f + leading_coeff g :=
@@ -66,6 +67,8 @@ begin
   rwa [←Ha],
 end
 
+#check polynomial.module
+
 lemma leading_term_bdd_deg_ideal {R} [nonzero_comm_ring R] (I : set (polynomial R)) [is_submodule I] (n : ℕ) :
 submodule R R :=
 ⟨{c : R | ∃ f, f ∈ I ∧ degree f ≤ n ∧ leading_coeff f = c},{
@@ -78,8 +81,12 @@ submodule R R :=
       exact ⟨f,Hf.1,Hf.2.1,rfl⟩,
     by_cases hd : nat_degree f ≤ nat_degree g,
     { let h := f * X ^ (nat_degree g - nat_degree f) + g,
-      letI : module (polynomial R) (polynomial R) := by apply_instance,
-      letI : is_submodule I := _inst_2,
+      letI : comm_ring (polynomial R) := by apply_instance,
+      letI : module (polynomial R) (polynomial R) := @ring.to_module (polynomial R) _,
+--      letI : module (polynomial R) (polynomial R) := ring.to_module, --(comm_ring.to_ring XXX),-- by apply_instance, -- fails to generate instance
+      letI : is_submodule I := _inst_2, -- also fails
+      have HfXtemp : X ^ (nat_degree g - nat_degree f) ∈ I :=
+        is_submodule.smul ((@polynomial.X R _ _) ^ (nat_degree g - nat_degree f)) Hf.1,
       have HfX : f * X ^ (nat_degree g - nat_degree f) ∈ I :=
         mul_comm (X ^ (nat_degree g - nat_degree f)) f ▸ is_submodule.smul ((@polynomial.X R _ _) ^ (nat_degree g - nat_degree f)) Hf.1,
       have hI : h ∈ I := is_submodule.add (mul_comm ▸ is_submodule.smul ((@polynomial.X R _ _) ^ (nat_degree g - nat_degree f)) Hf.1) Hg.1,
@@ -107,7 +114,7 @@ begin
       by_cases h0 : a + b = 0, rw h0, exact ⟨0, rfl⟩,
       by_cases hf : f = 0, rw [←Hf, ←Hg, hf, leading_coeff_zero, zero_add], exact ⟨g,rfl⟩,
       by_cases hg : g = 0, rw [←Hf, ←Hg, hg, leading_coeff_zero, add_zero], exact ⟨f,rfl⟩,
-      by_cases hd : nat_degree f ≤ nat_degree g,
+      by_cases hd : nat_degree f ≤ nat_degree g, -- can't get WLOG to work
       { let h := f * X ^ (nat_degree g - nat_degree f) + g,
         exact ⟨h, Hf ▸ Hg ▸ leading_term_aux hd hf hg (Hf.symm ▸ Hg.symm ▸ h0)⟩,
       },
