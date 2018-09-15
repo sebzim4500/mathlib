@@ -89,12 +89,12 @@ match tgt with
 | none := get_local `this >> simp_at [some `this, none] <|> simp_at [none]
 | some e := do
   e ← i_to_expr e <|> do {
-    ty ← target,
-    e ← i_to_expr_strict ``(%%e : %%ty), -- for positional error messages, don't care about the result
-    pty ← pp ty, ptgt ← pp e,
-    -- Fail deliberately, to advise regarding `simp; exact` usage
-    fail ("simpa failed, 'using' expression type not directly " ++
-      "inferrable. Try:\n\nsimpa ... using\nshow " ++
+      ty ← target,
+      e ← i_to_expr_strict ``(%%e : %%ty), -- for positional error messages, don't care about the result
+      pty ← pp ty, ptgt ← pp e,
+      -- Fail deliberately, to advise regarding `simp; exact` usage
+      fail ("simpa failed, 'using' expression type not directly " ++
+        "inferrable. Try:\n\nsimpa ... using\nshow " ++
       to_fmt pty ++ ",\nfrom " ++ ptgt : format) },
   match e with
   | local_const _ lc _ _ := simp_at [some lc, none]
@@ -204,8 +204,8 @@ are made into the new goal.
 optional arguments:
 - asms: list of rules to consider instead of the local constants
 - tac:  a tactic to run on each subgoals after applying an assumption; if
-        this tactic fails, the corresponding assumption will be rejected and
-        the next one will be attempted.
+          this tactic fails, the corresponding assumption will be rejected and
+          the next one will be attempted.
 -/
 meta def apply_assumption
   (asms : option (list expr) := none)

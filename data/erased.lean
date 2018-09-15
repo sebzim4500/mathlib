@@ -39,6 +39,10 @@ end
 noncomputable def equiv (α) : erased α ≃ α :=
 ⟨out, mk, mk_out, out_mk⟩
 
+theorem out_bijective {α} : function.bijective (@out α) := (equiv _).bijective
+
+theorem mk_bijective {α} : function.bijective (@mk α) := (equiv _).symm.bijective
+
 instance (α : Type*) : has_repr (erased α) := ⟨λ _, "erased"⟩
 
 def choice {α} (h : nonempty α) : erased α := mk (classical.choice h)
