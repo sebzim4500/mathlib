@@ -7,10 +7,10 @@ open polynomial
 
 local attribute [instance, priority 1] classical.prop_decidable
 
-def deg_le (R : Type*) [comm_semiring R] (n : with_bot ℕ) :=
+def deg_le (R : Type*) [comm_semiring R] [decidable_eq R] (n : with_bot ℕ) :=
 {f : polynomial R | degree f ≤ n}
 
-def coeff_zero_iff_deg_le {R} [comm_semiring R] (f : polynomial R) (n : with_bot ℕ) :
+def coeff_zero_iff_deg_le {R} [comm_semiring R] [decidable_eq R] (f : polynomial R) (n : with_bot ℕ) :
 degree f ≤ n ↔ ∀ m : ℕ, n < m → coeff f m = 0 :=
 ⟨λ (H : finset.sup (f.support) some ≤ n) m (Hm : n < (m : with_bot ℕ)), decidable.of_not_not $ λ H4,
   have H1 : m ∉ f.support,
@@ -19,7 +19,7 @@ degree f ≤ n ↔ ∀ m : ℕ, n < m → coeff f m = 0 :=
 λ H, finset.sup_le $ λ b Hb, decidable.of_not_not $ λ Hn, 
   (finsupp.mem_support_to_fun f b).1 Hb $ H b $ lt_of_not_ge Hn⟩
 
-definition polynomial.submodule_deg_le {R} [comm_ring R] {n : with_bot ℕ} :
+instance polynomial.submodule_deg_le {R} [comm_ring R] [decidable_eq R] {n : with_bot ℕ} :
 @is_submodule R (polynomial R) _ _ $ deg_le R n :=
 { zero_ := lattice.bot_le,
   add_ := λ f g Hf Hg, le_trans (degree_add_le f g) (max_le Hf Hg),
@@ -37,10 +37,32 @@ is_noetherian_ring (polynomial R) :=
 ring.is_noetherian_of_zero_eq_one $ (polynomial.ext _ _).2 $ λ n, by simp [h]
 -/
 
-
-lemma leading_term_bdd_deg_ideal {R} [nonzero_comm_ring R]
-  (I : set (polynomial R)) [@is_submodule (polynomial R) _ _ (ring.to_module) I] (n : ℕ) :
+definition deg_le_n_coeff_ideal {R} [decidable_eq R] [nonzero_comm_ring R]
+  (I : set (polynomial R)) (HI : @is_submodule R _ _ _ I) (n : ℕ) :
 submodule R R :=
+submodule.map (λ f : polynomial R, coeff f n) (@coeff_is_linear R _ _ n)
+  (⟨I, HI⟩ ⊓ ⟨deg_le R n,by apply_instance⟩)
+
+theorem deg_le_n_coeff_mono {R} [decidable_eq R] [nonzero_comm_ring R]
+  (I : set (polynomial R)) (HI : @is_submodule (polynomial R) _ _ (ring.to_module) I) (n : ℕ) :
+deg_le_n_coeff_ideal I _ n ⊆ deg_le_n_coeff_ideal I _ (n + 1) :=
+begin
+  intros r Hr,
+  unfold deg_le_n_coeff_ideal,
+  unfold submodule.map,
+  dsimp,
+  cases Hr with f Hf,
+  dsimp at Hf,
+  existsi (X * f),
+  dsimp,
+  split,
+    split,
+      show X * f ∈ I,
+      apply is_submodule.smul,
+end
+
+
+#exit
 ⟨{c : R | ∃ f, f ∈ I ∧ degree f ≤ n ∧ leading_coeff f = c},{
   zero_ := ⟨0,is_submodule.zero,lattice.bot_le,rfl⟩,
   add_ := λ a b ⟨f, Hf⟩ ⟨g, Hg⟩, begin
