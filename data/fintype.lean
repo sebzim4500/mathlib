@@ -181,6 +181,12 @@ instance : fintype unit := ⟨⟨()::0, by simp⟩, λ ⟨⟩, by simp⟩
 
 @[simp] theorem fintype.card_unit : fintype.card unit = 1 := rfl
 
+instance : fintype punit := ⟨⟨punit.star::0, by simp⟩, λ ⟨⟩, by simp⟩
+
+@[simp] theorem fintype.univ_punit : @univ punit _ = {punit.star} := rfl
+
+@[simp] theorem fintype.card_punit : fintype.card punit = 1 := rfl
+
 instance : fintype bool := ⟨⟨tt::ff::0, by simp⟩, λ x, by cases x; simp⟩
 
 @[simp] theorem fintype.univ_bool : @univ bool _ = {ff, tt} := rfl
@@ -300,6 +306,12 @@ from λ f hinj x,
   λ hsurj, injective_of_has_left_inverse
     ⟨surj_inv hsurj, left_inverse_of_surjective_of_right_inverse
       (this (injective_surj_inv _)) (right_inverse_surj_inv _)⟩⟩
+
+lemma fintype.injective_iff_bijective [fintype α] {f : α → α} : injective f ↔ bijective f :=
+by simp [bijective, fintype.injective_iff_surjective]
+
+lemma fintype.surjective_iff_bijective [fintype α] {f : α → α} : surjective f ↔ bijective f :=
+by simp [bijective, fintype.injective_iff_surjective]
 
 lemma fintype.injective_iff_surjective_of_equiv [fintype α] {f : α → β} (e : α ≃ β) :
   injective f ↔ surjective f :=
