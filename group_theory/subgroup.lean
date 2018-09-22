@@ -385,3 +385,9 @@ lemma inj_iff_trivial_ker (f : α → β) [is_group_hom f] :
 ⟨trivial_ker_of_inj f, inj_of_trivial_ker f⟩
 
 end is_group_hom
+
+section -- Simple groups
+variables (α) [group α]
+
+def simple : Prop := ∀ (s : set α) [normal_subgroup s], s = { 1 } ∨ s = set.univ
+end
