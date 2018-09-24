@@ -353,6 +353,10 @@ iff.intro (assume h, compact_image h hf.continuous) $ assume h, begin
   rwa [hf.2, nhds_induced_eq_comap, ←map_le_iff_le_comap]
 end
 
+lemma embedding.closure_eq_preimage_closure_image {e : α → β} (he : embedding e) (s : set α) :
+  closure s = e ⁻¹' closure (e '' s) :=
+by ext x; rw [set.mem_preimage_eq, ← closure_induced he.1, he.2]
+
 end embedding
 
 section quotient_map

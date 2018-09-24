@@ -8,7 +8,6 @@ Theory of topological monoids, groups and rings.
 TODO: generalize `topological_monoid` and `topological_add_monoid` to semigroups, or add a type class
 `topological_operator α (*)`.
 -/
-
 import order.liminf_limsup
 import algebra.big_operators algebra.group
 import data.set.intervals
@@ -19,12 +18,6 @@ local attribute [instance] classical.prop_decidable
 
 universes u v w
 variables {α : Type u} {β : Type v} {γ : Type w}
-
-lemma dense_or_discrete [linear_order α] {a₁ a₂ : α} (h : a₁ < a₂) :
-  (∃a, a₁ < a ∧ a < a₂) ∨ ((∀a>a₁, a ≥ a₂) ∧ (∀a<a₂, a ≤ a₁)) :=
-classical.or_iff_not_imp_left.2 $ assume h,
-  ⟨assume a ha₁, le_of_not_gt $ assume ha₂, h ⟨a, ha₁, ha₂⟩,
-    assume a ha₂, le_of_not_gt $ assume ha₁, h ⟨a, ha₁, ha₂⟩⟩
 
 section topological_monoid
 
@@ -207,275 +200,112 @@ theorem uniform_add_group.mk' {α} [uniform_space α] [add_group α]
   (h₂ : uniform_continuous (λp:α, -p)) : uniform_add_group α :=
 ⟨(uniform_continuous_fst.prod_mk (uniform_continuous_snd.comp h₂)).comp h₁⟩
 
-variables [uniform_space α] [add_group α]
+variables [uniform_space α] [add_group α] [uniform_add_group α]
 
-lemma uniform_continuous_sub' [uniform_add_group α] : uniform_continuous (λp:α×α, p.1 - p.2) :=
+lemma uniform_continuous_sub' : uniform_continuous (λp:α×α, p.1 - p.2) :=
 uniform_add_group.uniform_continuous_sub α
 
-lemma uniform_continuous_sub [uniform_add_group α] [uniform_space β] {f : β → α} {g : β → α}
+lemma uniform_continuous_sub [uniform_space β] {f : β → α} {g : β → α}
   (hf : uniform_continuous f) (hg : uniform_continuous g) : uniform_continuous (λx, f x - g x) :=
 (hf.prod_mk hg).comp uniform_continuous_sub'
 
-lemma uniform_continuous_neg [uniform_add_group α] [uniform_space β] {f : β → α}
+lemma uniform_continuous_neg [uniform_space β] {f : β → α}
   (hf : uniform_continuous f) : uniform_continuous (λx, - f x) :=
 have uniform_continuous (λx, 0 - f x),
   from uniform_continuous_sub uniform_continuous_const hf,
 by simp * at *
 
-lemma uniform_continuous_neg' [uniform_add_group α] : uniform_continuous (λx:α, - x) :=
+lemma uniform_continuous_neg' : uniform_continuous (λx:α, - x) :=
 uniform_continuous_neg uniform_continuous_id
 
-lemma uniform_continuous_add [uniform_add_group α] [uniform_space β] {f : β → α} {g : β → α}
+lemma uniform_continuous_add [uniform_space β] {f : β → α} {g : β → α}
   (hf : uniform_continuous f) (hg : uniform_continuous g) : uniform_continuous (λx, f x + g x) :=
 have uniform_continuous (λx, f x - - g x),
   from uniform_continuous_sub hf $ uniform_continuous_neg hg,
 by simp * at *
 
-lemma uniform_continuous_add' [uniform_add_group α] : uniform_continuous (λp:α×α, p.1 + p.2) :=
+lemma uniform_continuous_add' : uniform_continuous (λp:α×α, p.1 + p.2) :=
 uniform_continuous_add uniform_continuous_fst uniform_continuous_snd
 
-instance uniform_add_group.to_topological_add_group [uniform_add_group α] : topological_add_group α :=
+instance uniform_add_group.to_topological_add_group : topological_add_group α :=
 { continuous_add := uniform_continuous_add'.continuous,
   continuous_neg := uniform_continuous_neg'.continuous }
 
-end uniform_add_group
+lemma uniformity_translate (a : α) : uniformity.map (λx:α×α, (x.1 + a, x.2 + a)) = uniformity :=
+le_antisymm
+  (uniform_continuous_add uniform_continuous_id uniform_continuous_const)
+  (calc uniformity =
+    (uniformity.map (λx:α×α, (x.1 + -a, x.2 + -a))).map (λx:α×α, (x.1 + a, x.2 + a)) :
+      by simp [filter.map_map, (∘)]; exact filter.map_id.symm
+    ... ≤ uniformity.map (λx:α×α, (x.1 + a, x.2 + a)) :
+      filter.map_mono (uniform_continuous_add uniform_continuous_id uniform_continuous_const))
 
-section topological_add_group
-variables {G : Type u} [add_group G] [topological_space G] [topological_add_group G]
-
-lemma half_nhd (U ∈ (nhds (0 : G)).sets) :
-  ∃ V ∈ (nhds (0 : G)).sets, ∀ v w ∈ V, v + w ∈ U :=
+lemma uniform_embedding_translate (a : α) : uniform_embedding (λx:α, x + a) :=
 begin
-  have nhdb_in_prod : ((λ a : G × G, a.1+a.2)⁻¹' U) ∈ (nhds ((0, 0) : G × G)).sets,
-    by apply tendsto_add' ; simp [H],
-  rw nhds_prod_eq at nhdb_in_prod,
-  rcases mem_prod_iff.1 nhdb_in_prod with ⟨V₁, H₁, V₂, H₂, H⟩,
-  have H12: V₁ ∩ V₂ ∈ (nhds (0 : G)).sets := inter_mem_sets H₁ H₂,
-  existsi [(V₁ ∩ V₂), H12],
-  intros v w Hv Hw,
-  have : (v,w) ∈ set.prod V₁ V₂, by finish,
-  simpa using H this
-end
-
-lemma quarter_nhd (U ∈ (nhds (0 : G)).sets) :
-  ∃ V ∈ (nhds (0 : G)).sets, ∀ {v w s t}, v ∈ V → w ∈ V → s ∈ V → t ∈ V → v + w + s + t ∈ U :=
-begin
-  rcases half_nhd U H with ⟨W, W_nhd, h⟩,
-  rcases half_nhd W W_nhd with ⟨V, V_nhd, h'⟩,
-  existsi [V, V_nhd],
-  intros v w s t v_in w_in s_in t_in,
-  simpa using h _ _ (h' v w v_in w_in) (h' s t s_in t_in)
-end
-
-lemma continuous_translation (a : G) : continuous (λ b, b + a) :=
-have cont : continuous (λ b : G, (b, a)) := continuous.prod_mk continuous_id continuous_const,
- by simp[continuous.comp cont continuous_add']
-
-lemma continuous_neg_translation (a : G) :
-continuous (λ b, b - a) := continuous_translation (-a)
-
-variable (G)
-lemma nhds_zero_symm : comap (λ r : G, -r) (nhds (0 : G)) = nhds (0 : G) :=
-begin
-  let neg := (λ r : G, -r),
-  have inv : neg ∘ neg = id, { funext x, simp[neg_eq_iff_neg_eq] },
-  have lim : tendsto neg (nhds 0) (nhds 0) :=
-    by simpa using continuous.tendsto (topological_add_group.continuous_neg G) 0,
-  exact comap_eq_of_inverse inv inv lim lim
-end
-
-variable {G}
-
-lemma nhds_translation (x : G) : nhds x = comap (λ y, y-x) (nhds (0 : G)) :=
-begin
-  have lim₁ : tendsto (λ (y : G), y-x) (nhds x) (nhds 0),
-    by simpa using continuous.tendsto (continuous_neg_translation x) x,
-  have lim₂ : tendsto (λ (y : G), y+x) (nhds 0) (nhds x),
-    by simpa using continuous.tendsto (continuous_translation x) 0,
-
-  have inv₁ : (λ y, y-x) ∘ (λ y, y+x) = id, by {funext x, dsimp[id, (∘)], rw [add_assoc, add_right_neg], simp },
-  have inv₂ : (λ y, y+x) ∘ (λ y, y-x) = id, by {funext x, dsimp[id, (∘)], simp, },
-  exact eq.symm (comap_eq_of_inverse inv₁ inv₂ lim₁ lim₂)
-end
-end topological_add_group
-
-section topological_add_comm_group
-variables {G : Type u} [add_comm_group G] [topological_space G] [topological_add_group G]
-
-def δ : G × G → G := λ p, p.2 - p.1
-def Δ : filter (G × G) := principal id_rel
-
-variable (G)
-instance topological_add_group.to_uniform_space : uniform_space G :=
-{ uniformity          := comap δ (nhds 0),
-  refl                :=
-    begin
-      suffices : map δ Δ ≤ nhds (0: G), from map_le_iff_le_comap.1 this,
-      suffices : map δ Δ ≤ pure (0 : G), from le_trans this (pure_le_nhds 0),
-      dsimp [Δ],
-      rw map_principal,
-      have : (δ '' id_rel : set G) = {(0 : G)},
-      { ext,
-        simp [δ, id_rel],
-        split; try { intro H, existsi (0 : G) } ; finish },
-      finish
-    end,
-  symm                :=
-    begin
-      suffices : comap δ (nhds (0 : G)) ≤ comap prod.swap (comap δ (nhds (0 : G))),
-        from map_le_iff_le_comap.2 this,
-      suffices : comap δ (nhds (0 : G)) ≤ comap (δ ∘ prod.swap)  (nhds (0 : G)),
-        by simp[comap_comap_comp, this],
-      have δ_swap : (δ ∘ prod.swap : G × G → G) = (λ p, -p) ∘ δ, by {funext, simp[δ] },
-      have : comap (δ ∘ prod.swap) (nhds (0 : G)) = comap δ (nhds 0),
-        by rw [δ_swap, ←comap_comap_comp, nhds_zero_symm G],
-      finish
-    end,
-  comp                :=
-    begin
-      intros D H,
-      rw mem_lift'_sets,
-      { rcases H with ⟨U, U_nhds, U_sub⟩,
-        rcases half_nhd U U_nhds with ⟨V, ⟨V_nhds, V_sum⟩⟩,
-        existsi δ⁻¹'V,
-        have H : δ⁻¹'V ∈ (comap δ (nhds (0 : G))).sets,
-          by existsi [V, V_nhds] ; refl,
-        existsi H,
-        have comp_rel_sub : comp_rel (δ⁻¹'V) (δ⁻¹'V) ⊆ δ⁻¹' U,
-        begin
-          intros p p_comp_rel,
-          rcases p_comp_rel with ⟨z, ⟨Hz1, Hz2⟩⟩,
-          simpa[δ] using V_sum _ _ Hz1 Hz2
-        end,
-        exact set.subset.trans comp_rel_sub U_sub },
-      { exact monotone_comp_rel monotone_id monotone_id }
-    end,
-  is_open_uniformity  :=
-    begin
-      intro S,
-      let S' := λ x, {p : G × G | p.1 = x → p.2 ∈ S},
-
-      change is_open S ↔ ∀ (x : G), x ∈ S → S' x ∈ (comap δ (nhds (0 : G))).sets,
-      have := calc
-      is_open S ↔ ∀ (x : G), x ∈ S → S ∈ (nhds x).sets          : is_open_iff_mem_nhds
-            ... ↔ ∀ (x : G), x ∈ S → S ∈ (comap (λ y, y-x) (nhds (0:G))).sets : by conv in (_ ∈ _) {rw (nhds_translation x)},
-      have : (∀ x ∈ S, S ∈ (comap (λ y, y-x)  (nhds (0 : G))).sets) ↔ (∀ x ∈ S, S' x ∈ (comap δ (nhds (0 : G))).sets),
-        { split ; intros H x x_in_S ; specialize H x x_in_S;
-          { rcases H with ⟨U, U_nhds, U_prop⟩,
-            existsi [U, U_nhds],
-            have := calc
-            (λ y, y-x)⁻¹' U ⊆ S ↔ (∀ y, y-x ∈ U → y ∈ S) : set.preimage_subset_iff
-            ... ↔  (∀ p : G × G, p.2-p.1 ∈ U → p.1 = x → p.2 ∈ S) :
-                                                          begin
-                                                            split,
-                                                            { intros H h h' h'',
-                                                              apply H, cc },
-                                                            { intros H y h,
-                                                              specialize H (x,y),
-                                                              finish }
-                                                          end
-            ... ↔  (∀ p : G × G, δ p ∈ U → p ∈ S' x) : by simp[δ, S' x]
-            ... ↔ δ⁻¹'U ⊆ S' x : set.preimage_subset_iff,
-
-            cc } },
-      cc
-    end,}
-
-variable {G}
-lemma uniformity_eq_comap_nhds_zero : uniformity = comap δ (nhds (0 : G)) := rfl
-
-instance topological_add_group_is_uniform : uniform_add_group G :=
-⟨begin
-  rw [uniform_continuous, uniformity_prod_eq_prod],
-  apply tendsto_map',
-  apply tendsto_comap_iff.2,
-
-  suffices : tendsto (λ (x : (G × G) × G × G), x.1.2 - x.1.1 - (x.2.2 - x.2.1))
-    (filter.prod uniformity uniformity)
-    (nhds 0),
-  { simpa [(∘), δ] },
-
-  suffices : tendsto (λ (x : (G × G) × G × G), (x.1).2 - (x.1).1 - ((x.2).2 - (x.2).1))
-    (comap (λ (p : (G × G) × G × G), ((p.1).2 - (p.1).1, (p.2).2 - (p.2).1))
-       (filter.prod (nhds 0) (nhds 0)))
-    (nhds 0),
-  by simpa [(∘), δ, uniformity_eq_comap_nhds_zero, prod_comap_comap_eq, -sub_eq_add_neg],
-
-  conv { for (nhds _) [3] { rw [show (0:G) = 0 - 0, by simp] }},
-  exact tendsto_sub (tendsto.comp tendsto_comap tendsto_fst) (tendsto.comp tendsto_comap tendsto_snd),
-end⟩
-
-variables {H : Type*} [add_comm_group H] [topological_space H] [topological_add_group H]
-
-lemma uniform_continuous_of_continuous {f : G → H} [is_add_group_hom f] (h : continuous f) :
-  uniform_continuous f :=
-begin
-  simp only [uniform_continuous, uniformity_eq_comap_nhds_zero],
-  rw [tendsto_iff_comap, comap_comap_comp],
-
-  change comap δ (nhds 0) ≤ comap ( λ (x : G × G), f x.2 - f x.1) (nhds 0),
-  have : (λ (x : G × G), f (x.snd) - f (x.fst)) = λ (x : G × G), f (x.snd - x.fst),
-    by simp only [is_add_group_hom.sub f],
-  rw [this, ←tendsto_iff_comap],
-
-  exact tendsto.comp tendsto_comap (is_add_group_hom.zero f ▸ continuous.tendsto h (0:G))
-end
-
-lemma group_separation_rel (x y : G) : (x, y) ∈ separation_rel G ↔ x - y ∈ closure ({0} : set G) :=
-begin
-  change (x, y) ∈ ⋂₀ uniformity.sets ↔ x - y ∈ closure ({0} : set G),
-  rw [uniformity_eq_comap_nhds_zero, sInter_comap_sets, mem_closure_iff_nhds, nhds_translation (x - y)],
-
-  simp [-sub_eq_add_neg, set.inter_singleton_eq_empty, δ],
-  split,
-  { rintros h U V V_in h',
-    specialize h V V_in,
-    suffices : (0:G) ∈ U, by finish,
-    have : (0:G) ∈ (λ z, z - (x - y)) ⁻¹' V,
-      by simpa using h,
-    exact h' this },
-  { intros h U U_nhd,
-    specialize h ((λ z, z+x-y) '' U) U U_nhd,
-    have li :  function.left_inverse (λ (z : G), z + x - y) (λ (y_1 : G), y_1 - (x - y)),
-    { intro z,
-      simp,
-      rw ←add_assoc,
-      simp [add_assoc, add_comm] },
-    have := h (set.preimage_subset_image_of_inverse li U),
-    have : (0:G) ∈ ((λ (z : G), z + x - y) '' U), by finish,
-    have ri : function.right_inverse (λ (z : G), z + x - y) (λ (y_1 : G), y_1 - (x - y)),
-    { intro z,
-      simp,
-      rw ←add_assoc,
-      simp [add_assoc, add_comm] },
-    rw set.mem_image_iff_of_inverse ri li at this,
-    simpa using this }
+  refine ⟨assume x y, eq_of_add_eq_add_right, _⟩,
+  rw [← uniformity_translate a, comap_map] {occs := occurrences.pos [1]},
+  rintros ⟨p₁, p₂⟩ ⟨q₁, q₂⟩,
+  simp [prod.eq_iff_fst_eq_snd_eq] {contextual := tt}
 end
 
 section
-variables {E : Type*} [topological_space E] [add_comm_group E] [topological_add_group E]
-
--- A is a dense subgroup of E, inclusion is denoted by e
-variables {A : Type*} [topological_space A] [add_comm_group A] [topological_add_group A]
-variables {e : A → E} [is_add_group_hom e] (de : dense_embedding e)
-include de
-
-lemma tendsto_sub_comap_self (x₀ : E) :
-  tendsto (λ (t : A × A), t.2 - t.1) (comap (λ p : A × A, (e p.1, e p.2)) $ nhds (x₀, x₀)) (nhds 0) :=
+variables (α)
+lemma uniformity_eq_comap_nhds_zero : uniformity = comap (λx:α×α, x.2 - x.1) (nhds (0:α)) :=
+have ∀{s:set (α×α)} {f : α → α → α},
+  uniform_continuous (λp:α×α, f p.1 p.2) → s ∈ (@uniformity α _).sets →
+  ∃u∈(@uniformity α _).sets, ∀a b c, (a, b) ∈ u → (f a c, f b c) ∈ s,
 begin
-  have comm : (λ x : E × E, x.2-x.1) ∘ (λ (t : A × A), (e t.1, e t.2)) = e ∘ (λ (t : A × A), t.2 - t.1),
-  { ext t,
-    change e t.2 - e t.1 = e (t.2 - t.1),
-    rwa ← is_add_group_hom.sub e t.2 t.1 },
-  have lim : tendsto (λ x : E × E, x.2-x.1) (nhds (x₀, x₀)) (nhds (e 0)),
-    { have := continuous.tendsto (continuous.comp continuous_swap continuous_sub') (x₀, x₀),
-      simpa [-sub_eq_add_neg, sub_self, eq.symm (is_add_group_hom.zero e)] using this },
-  have := de.tendsto_comap_nhds_nhds lim comm,
-  simp [-sub_eq_add_neg, this]
+  assume s f hf hs,
+  rw [uniform_continuous, uniformity_prod_eq_prod, tendsto_map'_iff, (∘)] at hf,
+  rcases mem_map_sets_iff.1 (hf hs) with ⟨t, ht, hts⟩, clear hf,
+  rcases mem_prod_iff.1 ht with ⟨u, hu, v, hv, huvt⟩, clear ht,
+  refine ⟨u, hu, assume a b c hab, hts $ (mem_image _ _ _).2 ⟨⟨⟨a, b⟩, ⟨c, c⟩⟩, huvt ⟨_, _⟩, _⟩⟩,
+  exact hab,
+  exact refl_mem_uniformity hv,
+  refl
+end,
+begin
+  rw [nhds_eq_comap_uniformity, filter.comap_comap_comp],
+  refine le_antisymm (filter.map_le_iff_le_comap.1 _) _,
+  { assume s hs,
+    rcases this uniform_continuous_sub' hs with ⟨t, ht, hts⟩,
+    refine mem_map.2 (mem_sets_of_superset ht _),
+    rintros ⟨a, b⟩,
+    simpa [subset_def] using hts a b a },
+  { assume s hs,
+    rcases this uniform_continuous_add' hs with ⟨t, ht, hts⟩,
+    refine ⟨_, ht, _⟩,
+    rintros ⟨a, b⟩, simpa [subset_def] using hts 0 (b - a) a }
 end
 end
-end topological_add_comm_group
 
+lemma group_separation_rel (x y : α) : (x, y) ∈ separation_rel α ↔ x - y ∈ closure ({0} : set α) :=
+have embedding (λa, a + (y - x)), from (uniform_embedding_translate (y - x)).embedding,
+show (x, y) ∈ ⋂₀ uniformity.sets ↔ x - y ∈ closure ({0} : set α),
+begin
+  rw [this.closure_eq_preimage_closure_image, uniformity_eq_comap_nhds_zero α, sInter_comap_sets],
+  simp [mem_closure_iff_nhds, inter_singleton_eq_empty]
+end
+
+lemma uniform_continuous_of_tendsto_zero [uniform_space β] [add_group β] [uniform_add_group β]
+  {f : α → β} [is_add_group_hom f] (h : tendsto f (nhds 0) (nhds 0)) :
+  uniform_continuous f :=
+begin
+  have : ((λx:β×β, x.2 - x.1) ∘ (λx:α×α, (f x.1, f x.2))) = (λx:α×α, f (x.2 - x.1)),
+  { simp only [is_add_group_hom.sub f] },
+  rw [uniform_continuous, uniformity_eq_comap_nhds_zero α, uniformity_eq_comap_nhds_zero β,
+    tendsto_comap_iff, this],
+  exact tendsto.comp tendsto_comap h
+end
+
+lemma uniform_continuous_of_continuous [uniform_space β] [add_group β] [uniform_add_group β]
+  {f : α → β} [is_add_group_hom f] (h : continuous f) :
+  uniform_continuous f :=
+uniform_continuous_of_tendsto_zero $
+  suffices tendsto f (nhds 0) (nhds (f 0)), by rwa [is_add_group_hom.zero f] at this,
+  h.tendsto 0
+
+end uniform_add_group
 
 /-- A topological semiring is a semiring where addition and multiplication are continuous. -/
 class topological_semiring (α : Type u) [topological_space α] [semiring α]

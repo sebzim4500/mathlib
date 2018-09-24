@@ -464,19 +464,19 @@ lemma uniform_embedding.uniform_continuous_iff [uniform_space β] [uniform_space
   {g : β → γ} (hg : uniform_embedding g) : uniform_continuous f ↔ uniform_continuous (g ∘ f) :=
 by simp [uniform_continuous, tendsto]; rw [← hg.2, ← map_le_iff_le_comap, filter.map_map]
 
+lemma uniform_embedding.embedding [uniform_space β] {f : α → β} (h : uniform_embedding f) : embedding f :=
+begin
+  refine ⟨h.left, eq_of_nhds_eq_nhds $ assume a, _⟩,
+  rw [nhds_induced_eq_comap, nhds_eq_uniformity, nhds_eq_uniformity, ← h.right,
+    comap_lift'_eq, comap_lift'_eq2];
+    { refl <|> exact monotone_preimage }
+end
+
 lemma uniform_embedding.dense_embedding [uniform_space β] {f : α → β}
   (h : uniform_embedding f) (hd : ∀x, x ∈ closure (range f)) : dense_embedding f :=
 { dense   := hd,
   inj     := h.left,
-  induced :=
-  begin
-    intro a,
-    simp [h.right.symm, nhds_eq_uniformity],
-    rw [comap_lift'_eq, comap_lift'_eq2],
-    refl,
-    exact monotone_preimage,
-    exact monotone_preimage
-  end }
+  induced := assume a, by rw [h.embedding.2, nhds_induced_eq_comap] }
 
 lemma uniform_continuous.continuous [uniform_space β] {f : α → β}
   (hf : uniform_continuous f) : continuous f :=
@@ -496,7 +496,7 @@ calc map f (nhds a) ≤
 lemma closure_image_mem_nhds_of_uniform_embedding
   [uniform_space α] [uniform_space β] {s : set (α×α)} {e : α → β} (b : β)
   (he₁ : uniform_embedding e) (he₂ : dense_embedding e) (hs : s ∈ (@uniformity α _).sets) :
-∃a, closure (e '' {a' | (a, a') ∈ s}) ∈ (nhds b).sets :=
+  ∃a, closure (e '' {a' | (a, a') ∈ s}) ∈ (nhds b).sets :=
 have s ∈ (comap (λp:α×α, (e p.1, e p.2)) $ uniformity).sets,
   from he₁.right.symm ▸ hs,
 let ⟨t₁, ht₁u, ht₁⟩ := this in
