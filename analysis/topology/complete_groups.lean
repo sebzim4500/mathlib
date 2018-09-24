@@ -90,15 +90,15 @@ include hφ bilin
 variables (x₀ : E) (y₀ : F) {W' : set G} (W'_nhd : W' ∈ (nhds (0 : G)).sets)
 include W'_nhd
 
-private lemma extend_Z_bilin_aux (x₀ : E) (y₁ : B) : ∃ U₂ ∈ (vmap e (nhds x₀)).sets,
+private lemma extend_Z_bilin_aux (x₀ : E) (y₁ : B) : ∃ U₂ ∈ (comap e (nhds x₀)).sets,
     ∀ x x' ∈ U₂, φ(x' - x, y₁) ∈ W' :=
 begin
   let Nx := nhds x₀,
   let ee := λ u : A × A, (e u.1, e u.2),
 
-  have lim1 : tendsto (λ a : A × A, (a.2 - a.1, y₁)) (filter.prod (vmap e Nx) (vmap e Nx)) (nhds (0, y₁)),
-  { have := tendsto.prod_mk (tendsto_sub_vmap_self de x₀) (tendsto_const_nhds : tendsto (λ (p : A × A), y₁) (vmap ee $ nhds (x₀, x₀)) (nhds y₁)),
-    rw [nhds_prod_eq, prod_vmap_vmap_eq, ←nhds_prod_eq],
+  have lim1 : tendsto (λ a : A × A, (a.2 - a.1, y₁)) (filter.prod (comap e Nx) (comap e Nx)) (nhds (0, y₁)),
+  { have := tendsto.prod_mk (tendsto_sub_comap_self de x₀) (tendsto_const_nhds : tendsto (λ (p : A × A), y₁) (comap ee $ nhds (x₀, x₀)) (nhds y₁)),
+    rw [nhds_prod_eq, prod_comap_comap_eq, ←nhds_prod_eq],
     exact (this : _) },
 
   have lim := tendsto.comp lim1 (is_Z_bilin.tendsto_zero_right hφ y₁),
@@ -107,7 +107,7 @@ begin
 end
 
 
-private lemma extend_Z_bilin_key  : ∃ U ∈ (vmap e (nhds x₀)).sets, ∃ V ∈ (vmap f (nhds y₀)).sets,
+private lemma extend_Z_bilin_key  : ∃ U ∈ (comap e (nhds x₀)).sets, ∃ V ∈ (comap f (nhds y₀)).sets,
       ∀ x x' ∈ U, ∀ y y' ∈ V, φ (x', y') - φ (x, y) ∈ W' :=
 begin
   let Nx := nhds x₀,
@@ -122,20 +122,20 @@ begin
     rwa [is_Z_bilin.zero φ] at this },
 
   have lim_φ_sub_sub : tendsto (λ (p : (A × A) × (B × B)), φ (p.1.2 - p.1.1, p.2.2 - p.2.1))
-    (filter.prod (vmap ee $ nhds (x₀, x₀)) (vmap ff $ nhds (y₀, y₀))) (nhds 0),
+    (filter.prod (comap ee $ nhds (x₀, x₀)) (comap ff $ nhds (y₀, y₀))) (nhds 0),
   { have lim_sub_sub :  tendsto (λ (p : (A × A) × B × B), (p.1.2 - p.1.1, p.2.2 - p.2.1))
-      (filter.prod (vmap ee (nhds (x₀, x₀))) (vmap ff (nhds (y₀, y₀)))) (filter.prod (nhds 0) (nhds 0)),
-    { have := filter.prod_mono (tendsto_sub_vmap_self de x₀) (tendsto_sub_vmap_self df y₀),
+      (filter.prod (comap ee (nhds (x₀, x₀))) (comap ff (nhds (y₀, y₀)))) (filter.prod (nhds 0) (nhds 0)),
+    { have := filter.prod_mono (tendsto_sub_comap_self de x₀) (tendsto_sub_comap_self df y₀),
       rwa prod_map_map_eq at this },
     rw ← nhds_prod_eq at lim_sub_sub,
     exact tendsto.comp lim_sub_sub lim_φ },
 
   rcases quarter_nhd W' W'_nhd with ⟨W, W_nhd, W4⟩,
 
-  have : ∃ U₁ ∈ (vmap e (nhds x₀)).sets, ∃ V₁ ∈ (vmap f (nhds y₀)).sets,
+  have : ∃ U₁ ∈ (comap e (nhds x₀)).sets, ∃ V₁ ∈ (comap f (nhds y₀)).sets,
     ∀ x x' ∈ U₁, ∀ y y' ∈ V₁,  φ (x'-x, y'-y) ∈ W,
   { have := tendsto_prod_iff.1 lim_φ_sub_sub W W_nhd,
-    repeat { rw [nhds_prod_eq, ←prod_vmap_vmap_eq] at this },
+    repeat { rw [nhds_prod_eq, ←prod_comap_comap_eq] at this },
     rcases this with ⟨U, U_in, V, V_in, H⟩,
     rw [mem_prod_same_iff] at U_in V_in,
     rcases U_in with ⟨U₁, U₁_in, HU₁⟩,
@@ -146,11 +146,11 @@ begin
   rcases this with ⟨U₁, U₁_nhd, V₁, V₁_nhd, H⟩,
 
   have : ∃ x₁, x₁ ∈ U₁ := exists_mem_of_ne_empty
-    (forall_sets_neq_empty_iff_neq_bot.2 de.vmap_nhds_neq_bot U₁ U₁_nhd),
+    (forall_sets_neq_empty_iff_neq_bot.2 de.comap_nhds_neq_bot U₁ U₁_nhd),
   rcases this with ⟨x₁, x₁_in⟩,
 
   have : ∃ y₁, y₁ ∈ V₁ := exists_mem_of_ne_empty
-    (forall_sets_neq_empty_iff_neq_bot.2 df.vmap_nhds_neq_bot V₁ V₁_nhd),
+    (forall_sets_neq_empty_iff_neq_bot.2 df.comap_nhds_neq_bot V₁ V₁_nhd),
   rcases this with ⟨y₁, y₁_in⟩,
 
   rcases (extend_Z_bilin_aux de df hφ W_nhd x₀ y₁) with ⟨U₂, U₂_nhd, HU⟩,
@@ -185,7 +185,7 @@ begin
   rintro ⟨x₀, y₀⟩,
   split,
   { apply map_ne_bot,
-    apply vmap_neq_bot,
+    apply comap_neq_bot,
 
     intros U h,
     rcases exists_mem_of_ne_empty (mem_closure_iff_nhds.1 (dp.dense (x₀, y₀)) U h)
@@ -193,21 +193,21 @@ begin
     existsi z,
     cc },
   { suffices : map (λ (p : (A × B) × (A × B)), φ p.2 - φ p.1)
-      (vmap (λ (p : (A × B) × A × B), ((e p.1.1, f p.1.2), (e p.2.1, f p.2.2)))
+      (comap (λ (p : (A × B) × A × B), ((e p.1.1, f p.1.2), (e p.2.1, f p.2.2)))
          (filter.prod (nhds (x₀, y₀)) (nhds (x₀, y₀)))) ≤ nhds 0,
-    by rwa [uniformity_eq_vmap_nhds_zero, prod_map_map_eq, ←map_le_iff_le_vmap, filter.map_map,
-        prod_vmap_vmap_eq],
+    by rwa [uniformity_eq_comap_nhds_zero, prod_map_map_eq, ←map_le_iff_le_comap, filter.map_map,
+        prod_comap_comap_eq],
 
     intros W' W'_nhd,
 
     have key := extend_Z_bilin_key de df hφ x₀ y₀ W'_nhd,
     rcases key with ⟨U, U_nhd, V, V_nhd, h⟩,
-    rw mem_vmap_sets at U_nhd,
+    rw mem_comap_sets at U_nhd,
     rcases U_nhd with ⟨U', U'_nhd, U'_sub⟩,
-    rw mem_vmap_sets at V_nhd,
+    rw mem_comap_sets at V_nhd,
     rcases V_nhd with ⟨V', V'_nhd, V'_sub⟩,
 
-    rw [mem_map, mem_vmap_sets, nhds_prod_eq],
+    rw [mem_map, mem_comap_sets, nhds_prod_eq],
     existsi set.prod (set.prod U' V') (set.prod U' V'),
     rw mem_prod_same_iff,
 
