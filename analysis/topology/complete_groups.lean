@@ -1,3 +1,5 @@
+#exit
+
 import analysis.topology.group_completion
 
 

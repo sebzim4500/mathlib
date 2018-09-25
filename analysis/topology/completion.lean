@@ -7,20 +7,20 @@ Hausdorff completions of uniform spaces.
 
 The goal is to construct a left-adjoint to the inclusion of complete Hausdorff uniform spaces
 into all uniform spaces. Any uniform space `α` gets a completion `completion α` and a morphism
-(ie. uniformly continuous map) `to_completion : α → completion α` which solves the universal
+(ie. uniformly continuous map) `completion : α → completion α` which solves the universal
 mapping problem of factorizing morphisms from `α` to any complete Hausdorff uniform space `β`.
 It means any uniformly continuous `f : α → β` gives rise to a unique morphism
-`completion.map f : completion α → β` such that `f = completion_extension f ∘ to_completion α`.
-Actually `completion_extension f` is defined for all maps from `α` to `β` but it has the desired
+`completion.map f : completion α → β` such that `f = completion.extension f ∘ completion α`.
+Actually `completion.extension f` is defined for all maps from `α` to `β` but it has the desired
 properties only if `f` is uniformly continuous.
 
-Beware that `to_completion α` is not injective if `α` is not Hausdorff. But its image is always
+Beware that `completion α` is not injective if `α` is not Hausdorff. But its image is always
 dense.
 
 The adjoint functor acting on morphisms is then constructed by the usual abstract nonsense.
 For every uniform spaces `α` and `β`, if turns `f : α → β` into
 a morphism `completion.map f : completion α → completion β` such that
-`(to_completion β) ∘ f = (completion.map f) ∘ to_completion α` provided `f` is uniformly continuous.
+`(completion β) ∘ f = (completion.map f) ∘ completion α` provided `f` is uniformly continuous.
 This construction is compatible with composition.
 
 This formalization is mostly based on
@@ -28,18 +28,41 @@ This formalization is mostly based on
   I. M. James: Topologies and Uniformities
 From a slightly different perspective in order to reuse material in analysis.topology.uniform_space.
 -/
-import analysis.topology.uniform_space
-import analysis.topology.continuity
 import data.set.basic data.set.function
+import algebra.pi_instances
+import analysis.topology.uniform_space analysis.topology.topological_structures
 
-open filter set
+noncomputable theory
 local attribute [instance] classical.prop_decidable
+open filter set
 universes u v w
+
+namespace filter
+variables {α : Type u} {β : Type v} {γ : Type w}
+
+@[simp] lemma prod_pure_pure {a : α} {b : β} :
+  filter.prod (pure a) (pure b) = pure (a, b) :=
+by simp
+
+end filter
 
 /- separation space -/
 namespace uniform_space
 variables {α : Type u} {β : Type v} {γ : Type w}
 variables [uniform_space α] [uniform_space β] [uniform_space γ]
+
+lemma uniform_continuous_of_const {c : α → β} (h : ∀a b, c a = c b) : uniform_continuous c :=
+have (λ (x : α × α), (c (x.fst), c (x.snd))) ⁻¹' id_rel = univ, from
+  eq_univ_iff_forall.2 $ assume ⟨a, b⟩, h a b,
+le_trans (map_le_iff_le_comap.2 $ by simp [comap_principal, this, univ_mem_sets]) refl_le_uniformity
+
+lemma cauchy_prod {f : filter α} {g : filter β} : cauchy f → cauchy g → cauchy (filter.prod f g)
+| ⟨f_proper, hf⟩ ⟨g_proper, hg⟩ := ⟨filter.prod_neq_bot.2 ⟨f_proper, g_proper⟩,
+  let p_α := λp:(α×β)×(α×β), (p.1.1, p.2.1), p_β := λp:(α×β)×(α×β), (p.1.2, p.2.2) in
+  suffices (f.prod f).comap p_α ⊓ (g.prod g).comap p_β ≤ uniformity.comap p_α ⊓ uniformity.comap p_β,
+    by simpa [uniformity_prod, filter.prod, filter.comap_inf, filter.comap_comap_comp, (∘),
+        lattice.inf_assoc, lattice.inf_comm, lattice.inf_left_comm],
+  lattice.inf_le_inf (filter.comap_mono hf) (filter.comap_mono hg)⟩
 
 def separation_setoid (α : Type u) [uniform_space α] : setoid α :=
 ⟨λx y, (x, y) ∈ separation_rel α, separated_equiv⟩
@@ -49,10 +72,7 @@ local attribute [instance] separation_setoid
 instance {α : Type u} [u : uniform_space α] : uniform_space (quotient (separation_setoid α)) :=
 { to_topological_space := u.to_topological_space.coinduced (λx, ⟦x⟧),
   uniformity := map (λp:(α×α), (⟦p.1⟧, ⟦p.2⟧)) uniformity,
-  refl := assume s hs ⟨a, b⟩ (h : a = b),
-    have ∀a:α, (a, a) ∈ preimage (λ (p : α × α), (⟦p.fst⟧, ⟦p.snd⟧)) s,
-      from assume a, refl_mem_uniformity hs,
-    h ▸ quotient.induction_on a this,
+  refl := le_trans (by simp [quotient.exists_rep]) (filter.map_mono refl_le_uniformity),
   symm := tendsto_map' $
     by simp [prod.swap, (∘)]; exact tendsto_swap_uniformity.comp tendsto_map,
   comp := calc (map (λ (p : α × α), (⟦p.fst⟧, ⟦p.snd⟧)) uniformity).lift' (λs, comp_rel s s) =
@@ -91,6 +111,10 @@ instance {α : Type u} [u : uniform_space α] : uniform_space (quotient (separat
       exact ⟨λh a ha, (this a ha).mp $ h a ha, λh a ha, (this a ha).mpr $ h a ha⟩
     end }
 
+lemma uniformity_quotient :
+  @uniformity (quotient (separation_setoid α)) _ = uniformity.map (λp:(α×α), (⟦p.1⟧, ⟦p.2⟧)) :=
+rfl
+
 lemma uniform_continuous_quotient_mk :
   uniform_continuous (quotient.mk : α → quotient (separation_setoid α)) :=
 le_refl _
@@ -104,9 +128,15 @@ lemma uniform_continuous_quotient_lift
   (hf : uniform_continuous f) : uniform_continuous (λa, quotient.lift f h a) :=
 uniform_continuous_quotient hf
 
-lemma uniformity_quotient :
-  @uniformity (quotient (separation_setoid α)) _ = uniformity.map (λp:(α×α), (⟦p.1⟧, ⟦p.2⟧)) :=
-rfl
+lemma uniform_continuous_quotient_lift₂ [uniform_space γ]
+  {f : α → β → γ} {h : ∀a c b d, (a, b) ∈ separation_rel α → (c, d) ∈ separation_rel β → f a c = f b d}
+  (hf : uniform_continuous (λp:α×β, f p.1 p.2)) :
+  uniform_continuous (λp:_×_, quotient.lift₂ f h p.1 p.2) :=
+begin
+  rw [uniform_continuous, uniformity_prod_eq_prod, uniformity_quotient, uniformity_quotient,
+    filter.prod_map_map_eq, filter.tendsto_map'_iff, filter.tendsto_map'_iff],
+  rwa [uniform_continuous, uniformity_prod_eq_prod, filter.tendsto_map'_iff] at hf
+end
 
 lemma comap_quotient_le_uniformity :
   uniformity.comap (λ (p : α × α), (⟦p.fst⟧, ⟦p.snd⟧)) ≤ uniformity :=
@@ -158,16 +188,6 @@ assume _ h', h _ (H h')
 lemma eq_of_separated_of_uniform_continuous [separated β] {f : α → β} {x y : α}
   (H : uniform_continuous f) (h : x ≈ y) : f x = f y :=
 separated_def.1 (by apply_instance) _ _ $ separated_of_uniform_continuous H h
-
-lemma uniform_continuous_quotient_lift₂ [uniform_space γ]
-  {f : α → β → γ} {h : ∀a c b d, (a, b) ∈ separation_rel α → (c, d) ∈ separation_rel β → f a c = f b d}
-  (hf : uniform_continuous (λp:α×β, f p.1 p.2)) :
-  uniform_continuous (λp:_×_, quotient.lift₂ f h p.1 p.2) :=
-begin
-  rw [uniform_continuous, uniformity_prod_eq_prod, uniformity_quotient, uniformity_quotient,
-    filter.prod_map_map_eq, filter.tendsto_map'_iff, filter.tendsto_map'_iff],
-  rwa [uniform_continuous, uniformity_prod_eq_prod, filter.tendsto_map'_iff] at hf
-end
 
 lemma separation_prod {a₁ a₂ : α} {b₁ b₂ : β} : (a₁, b₁) ≈ (a₂, b₂) ↔ a₁ ≈ a₂ ∧ b₁ ≈ b₂ :=
 begin
@@ -269,7 +289,7 @@ calc (uniformity.lift' gen).lift' (λs, comp_rel s s) =
   end
   ... ≤ uniformity.lift' gen : lift'_mono comp_le_uniformity (le_refl _)
 
-instance completion_space : uniform_space (Cauchy α) :=
+instance : uniform_space (Cauchy α) :=
 uniform_space.of_core
 { uniformity  := uniformity.lift' gen,
   refl        := principal_le_lift' $ assume s hs ⟨a, b⟩ (a_eq_b : a = b),
@@ -331,6 +351,19 @@ begin
       ne_empty_of_mem this)
 end
 
+lemma dense_embedding_pure_cauchy : dense_embedding pure_cauchy :=
+uniform_embedding_pure_cauchy.dense_embedding pure_cauchy_dense
+
+lemma nonempty_Cauchy_iff : nonempty (Cauchy α) ↔ nonempty α :=
+begin
+  split ; rintro ⟨c⟩,
+  { have := eq_univ_iff_forall.1 dense_embedding_pure_cauchy.closure_range c,
+    have := mem_closure_iff.1 this _ is_open_univ trivial,
+    rcases exists_mem_of_ne_empty this with ⟨_, ⟨_, a, _⟩⟩,
+    exact ⟨a⟩ },
+  { exact ⟨pure_cauchy c⟩ }
+end
+
 section
 set_option eqn_compiler.zeta true
 instance : complete_space (Cauchy α) :=
@@ -348,49 +381,75 @@ complete_space_extension
     f.sets_of_superset ht' $ subset.trans this (preimage_mono ht₂),
   ⟨f', by simp [nhds_eq_uniformity]; assumption⟩
 end
-end
 
-instance {α : Type u} [inhabited α] [uniform_space α] : inhabited (Cauchy α) :=
-⟨Cauchy.pure_cauchy $ default α⟩
+instance [inhabited α] : inhabited (Cauchy α) :=
+⟨pure_cauchy $ default α⟩
 
-instance {α : Type u} [h : nonempty α] [uniform_space α] : nonempty (Cauchy α) :=
+instance [h : nonempty α] : nonempty (Cauchy α) :=
 h.rec_on $ assume a, nonempty.intro $ Cauchy.pure_cauchy a
 
-end Cauchy
+section extend
+variables [_root_.complete_space β] [separated β]
 
-namespace uniform_space
-variables {α : Type u} {β : Type v} {γ : Type w}
-variables [uniform_space α] [uniform_space β] [uniform_space γ]
-open Cauchy
+def extend (f : α → β) : (Cauchy α → β) :=
+if uniform_continuous f then
+  dense_embedding_pure_cauchy.extend f
+else
+  λ x, f (classical.inhabited_of_nonempty $ nonempty_Cauchy_iff.1 ⟨x⟩).default
 
-local attribute [instance] separation_setoid
-
-lemma prod_cauchy {f : filter α} {g : filter β} : cauchy f → cauchy g → cauchy (filter.prod f g)
-| ⟨f_proper, hf⟩ ⟨g_proper, hg⟩ := ⟨filter.prod_neq_bot.2 ⟨f_proper, g_proper⟩,
-  let p_α := λp:(α×β)×(α×β), (p.1.1, p.2.1), p_β := λp:(α×β)×(α×β), (p.1.2, p.2.2) in
-  suffices (f.prod f).comap p_α ⊓ (g.prod g).comap p_β ≤ uniformity.comap p_α ⊓ uniformity.comap p_β,
-    by simpa [uniformity_prod, filter.prod, filter.comap_inf, filter.comap_comap_comp, (∘),
-        lattice.inf_assoc, lattice.inf_comm, lattice.inf_left_comm],
-  lattice.inf_le_inf (filter.comap_mono hf) (filter.comap_mono hg)⟩
-
-def pure_cauchy₂ : α × β → Cauchy α × Cauchy β := λ x, (pure_cauchy x.1, pure_cauchy x.2)
-
-lemma pure_cauchy_dense₂ : ∀x : Cauchy α × Cauchy β, x ∈ closure (range (@pure_cauchy₂ α β _ _)) :=
+lemma extend_pure_cauchy {f : α → β} (hf : uniform_continuous f) (a : α) :
+  extend f (pure_cauchy a) = f a :=
 begin
-  intro x,
-  dsimp[pure_cauchy₂],
-  rw [←prod_range_range_eq, closure_prod_eq],
-  simp[prod.ext_iff, pure_cauchy_dense],
+  rw [extend, if_pos hf],
+  exact uniformly_extend_of_emb uniform_embedding_pure_cauchy pure_cauchy_dense _
 end
 
-namespace pure_cauchy
+lemma uniform_continuous_extend {f : α → β} : uniform_continuous (extend f) :=
+begin
+  by_cases hf : uniform_continuous f,
+  { rw [extend, if_pos hf],
+    exact uniform_continuous_uniformly_extend uniform_embedding_pure_cauchy pure_cauchy_dense hf },
+  { rw [extend, if_neg hf],
+    exact uniform_space.uniform_continuous_of_const (assume a b, by congr) }
+end
 
-def de := uniform_embedding_pure_cauchy.dense_embedding (@pure_cauchy_dense α _)
+end extend
 
-lemma prod.de : dense_embedding (λ p : α × β, (pure_cauchy p.1, pure_cauchy p.2)) :=
-dense_embedding.prod pure_cauchy.de pure_cauchy.de
+end
 
-end pure_cauchy
+theorem Cauchy_eq
+  {α : Type*} [inhabited α] [uniform_space α] [complete_space α] [separated α] {f g : Cauchy α} :
+  lim f.1 = lim g.1 ↔ (f, g) ∈ separation_rel (Cauchy α) :=
+begin
+  split,
+  { intros e s hs,
+    rcases Cauchy.mem_uniformity'.1 hs with ⟨t, tu, ts⟩,
+    apply ts,
+    rcases comp_mem_uniformity_sets tu with ⟨d, du, dt⟩,
+    refine mem_prod_iff.2
+      ⟨_, le_nhds_lim_of_cauchy f.2 (mem_nhds_right (lim f.1) du),
+       _, le_nhds_lim_of_cauchy g.2 (mem_nhds_left (lim g.1) du), λ x h, _⟩,
+    cases x with a b, cases h with h₁ h₂,
+    rw ← e at h₂,
+    exact dt ⟨_, h₁, h₂⟩ },
+  { intros H,
+    refine separated_def.1 (by apply_instance) _ _ (λ t tu, _),
+    rcases mem_uniformity_is_closed tu with ⟨d, du, dc, dt⟩,
+    refine H {p | (lim p.1.1, lim p.2.1) ∈ t}
+      (Cauchy.mem_uniformity'.2 ⟨d, du, λ f g h, _⟩),
+    rcases mem_prod_iff.1 h with ⟨x, xf, y, yg, h⟩,
+    have limc : ∀ (f : Cauchy α) (x ∈ f.1.sets), lim f.1 ∈ closure x,
+    { intros f x xf,
+      rw closure_eq_nhds,
+      exact lattice.neq_bot_of_le_neq_bot f.2.1
+        (lattice.le_inf (le_nhds_lim_of_cauchy f.2) (le_principal_iff.2 xf)) },
+    have := (closure_subset_iff_subset_of_is_closed dc).2 h,
+    rw closure_prod_eq at this,
+    refine dt (this ⟨_, _⟩); dsimp; apply limc; assumption }
+end
+
+section
+local attribute [instance] uniform_space.separation_setoid
 
 lemma injective_separated_pure_cauchy {α : Type*} [uniform_space α] [s : separated α] :
   function.injective (λa:α, ⟦pure_cauchy a⟧) | a b h :=
@@ -400,7 +459,30 @@ let ⟨t, ht, hts⟩ :=
 have (pure_cauchy a, pure_cauchy b) ∈ t, from quotient.exact h t ht,
 @hts (a, b) this
 
-end uniform_space
+end
+
+section prod
+variables {α : Type*} {β : Type*} [uniform_space α] [uniform_space β]
+
+def prod : Cauchy α × Cauchy β → Cauchy (α × β) :=
+dense_embedding.extend (dense_embedding_pure_cauchy.prod dense_embedding_pure_cauchy) pure_cauchy
+
+lemma prod_pure_cauchy_pure_cauchy (a : α) (b :β) :
+  prod (pure_cauchy a, pure_cauchy b) = pure_cauchy (a, b) :=
+uniformly_extend_of_emb
+  (uniform_embedding_pure_cauchy.prod uniform_embedding_pure_cauchy)
+  (dense_embedding_pure_cauchy.prod dense_embedding_pure_cauchy).dense
+  (a, b)
+
+lemma uniform_continuous_prod : uniform_continuous (@prod α β _ _) :=
+uniform_continuous_uniformly_extend
+  (uniform_embedding_pure_cauchy.prod uniform_embedding_pure_cauchy)
+  (dense_embedding_pure_cauchy.prod dense_embedding_pure_cauchy).dense
+  uniform_embedding_pure_cauchy.uniform_continuous
+
+end prod
+
+end Cauchy
 
 local attribute [instance] uniform_space.separation_setoid
 
@@ -414,325 +496,282 @@ variables {γ : Type*} [uniform_space γ]
 /-- Hausdorff completion of `α` -/
 def completion := quotient (separation_setoid $ Cauchy α)
 
+namespace completion
+
 @[priority 50]
-instance completion_uniform_space : uniform_space (completion α) := by unfold completion ; apply_instance
+instance : uniform_space (completion α) := by dunfold completion ; apply_instance
 
-instance completion_complete : complete_space (completion α) := complete_space_separation
+instance : complete_space (completion α) := complete_space_separation
 
-instance completion_separated : separated (completion α) := separated_separation
+instance : separated (completion α) := separated_separation
 
-instance completion_t2 : t2_space (completion α) := separated_t2
+instance : t2_space (completion α) := separated_t2
 
-instance completion_regular : regular_space (completion α) := separated_regular
+instance : regular_space (completion α) := separated_regular
 
 /-- Automatic coercion from `α` to its completion. Not always injective. -/
 instance : has_coe α (completion α) := ⟨quotient.mk ∘ pure_cauchy⟩
 
-namespace to_completion
-open set
+protected lemma coe_eq : (coe : α → completion α) = quotient.mk ∘ pure_cauchy := rfl
 
-lemma uniform_continuous : uniform_continuous (coe : α → completion α) :=
+lemma uniform_continuous_coe : uniform_continuous (coe : α → completion α) :=
 uniform_continuous.comp uniform_embedding_pure_cauchy.uniform_continuous
   uniform_continuous_quotient_mk
 
-lemma continuous : continuous (coe : α → completion α) :=
-uniform_continuous.continuous (uniform_continuous α)
+lemma continuous_coe : continuous (coe : α → completion α) :=
+uniform_continuous.continuous (uniform_continuous_coe α)
+
+lemma comap_coe_eq_uniformity :
+  uniformity.comap (λ(p:α×α), ((p.1 : completion α), (p.2 : completion α))) = uniformity :=
+begin
+  have : (λx:α×α, ((x.1 : completion α), (x.2 : completion α))) =
+    (λx:(Cauchy α)×(Cauchy α), (⟦x.1⟧, ⟦x.2⟧)) ∘ (λx:α×α, (pure_cauchy x.1, pure_cauchy x.2)),
+  { ext ⟨a, b⟩; simp; refl },
+  rw [this, ← filter.comap_comap_comp, comap_quotient_eq_uniformity, uniform_embedding_pure_cauchy.2]
+end
+
+lemma uniform_embedding_coe [separated α] : uniform_embedding  (coe : α → completion α) :=
+⟨injective_separated_pure_cauchy, comap_coe_eq_uniformity α⟩
 
 variable {α}
 
 lemma dense : closure (range (coe : α → completion α)) = univ   :=
+by rw [completion.coe_eq, range_comp]; exact quotient_dense_of_dense pure_cauchy_dense
+
+lemma dense₂ : closure (range (λx:α × β, ((x.1 : completion α), (x.2 : completion β)))) = univ :=
+by rw [← set.prod_range_range_eq, closure_prod_eq, dense, dense, univ_prod_univ]
+
+lemma dense₃ :
+  closure (range (λx:α × (β × γ), ((x.1 : completion α), ((x.2.1 : completion β), (x.2.2 : completion γ))))) = univ :=
+let a : α → completion α := coe, bc := λp:β × γ, ((p.1 : completion β), (p.2 : completion γ)) in
+show closure (range (λx:α × (β × γ), (a x.1, bc x.2))) = univ,
 begin
-  unfold_coes,
-  rw range_comp,
-  exact quotient_dense_of_dense pure_cauchy_dense
+  rw [← set.prod_range_range_eq, @closure_prod_eq _ _ _ _ (range a) (range bc), ← univ_prod_univ],
+  congr,
+  exact dense,
+  exact dense₂
 end
 
-lemma dense₁ : closure (range (λ x : α, (x : completion α))) = univ :=
-to_completion.dense
+@[elab_as_eliminator]
+lemma induction_on {p : completion α → Prop}
+  (a : completion α) (hp : is_closed {a | p a}) (ih : ∀a:α, p a) : p a :=
+is_closed_property dense hp ih a
 
-lemma dense₂ : let φ : α × β → (completion α) × (completion β) := λ x, ⟨x.1, x.2⟩ in
-  closure (range φ) = univ :=
+@[elab_as_eliminator]
+lemma induction_on₂ {p : completion α → completion β → Prop}
+  (a : completion α) (b : completion β)
+  (hp : is_closed {x : completion α × completion β | p x.1 x.2})
+  (ih : ∀(a:α) (b:β), p a b) : p a b :=
+have ∀x : completion α × completion β, p x.1 x.2, from
+  is_closed_property dense₂ hp $ assume ⟨a, b⟩, ih a b,
+this (a, b)
+
+@[elab_as_eliminator]
+lemma induction_on₃ {p : completion α → completion β → completion γ → Prop}
+  (a : completion α) (b : completion β) (c : completion γ)
+  (hp : is_closed {x : completion α × completion β × completion γ | p x.1 x.2.1 x.2.2})
+  (ih : ∀(a:α) (b:β) (c:γ), p a b c) : p a b c :=
+have ∀x : completion α × completion β × completion γ, p x.1 x.2.1 x.2.2, from
+  is_closed_property dense₃ hp $ assume ⟨a, b, c⟩, ih a b c,
+this (a, b, c)
+
+@[elab_as_eliminator]
+lemma induction_on₄ {δ : Type*} [uniform_space δ]
+  {p : completion α → completion β → completion γ → completion δ → Prop}
+  (a : completion α) (b : completion β) (c : completion γ) (d : completion δ)
+  (hp : is_closed {x : (completion α × completion β) × (completion γ × completion δ) | p x.1.1 x.1.2 x.2.1 x.2.2})
+  (ih : ∀(a:α) (b:β) (c:γ) (d : δ), p ↑a ↑b ↑c ↑d) : p a b c d :=
+let
+  ab := λp:α × β, ((p.1 : completion α), (p.2 : completion β)),
+  cd := λp:γ × δ, ((p.1 : completion γ), (p.2 : completion δ))
+in
+have dense₄ : closure (range (λx:(α × β) × (γ × δ), (ab x.1, cd x.2))) = univ,
 begin
-  intro φ,
-  have : range φ = set.prod (range (coe : α → completion α)) (range (coe : β → completion β)),
-  { ext x,
-    dsimp[φ],
-    unfold_coes,
-    simp[prod.ext_iff] },
-  simp [this, closure_prod_eq, dense]
-end
+  rw [← set.prod_range_range_eq, @closure_prod_eq _ _ _ _ (range ab) (range cd), ← univ_prod_univ],
+  congr,
+  exact dense₂,
+  exact dense₂
+end,
+have ∀x:(completion α × completion β) × (completion γ × completion δ), p x.1.1 x.1.2 x.2.1 x.2.2, from
+  is_closed_property dense₄ hp (assume p:(α×β)×(γ×δ), ih p.1.1 p.1.2 p.2.1 p.2.2),
+this ((a, b), (c, d))
 
-lemma dense₃ : let β := completion α in let φ : α × α × α → β × β × β := λ x, ⟨x.1, x.2.1, x.2.2⟩ in
-  closure (range φ) = univ :=
-begin
-  intros β φ,
-  have : range φ = set.prod (range (coe : α → completion α)) (set.prod (range (coe : α → completion α)) (range (coe : α → completion α))),
-  { ext x,
-    dsimp[φ],
-    unfold_coes,
-    simp[prod.ext_iff] },
-  simp [this, closure_prod_eq, dense]
-end
-end to_completion
-
-variable {α}
-lemma nonempty_completion_iff : nonempty (completion α) ↔ nonempty α :=
-begin
-  split ; rintro ⟨c⟩,
-  { have := eq_univ_iff_forall.1 to_completion.dense c,
-    have := mem_closure_iff.1 this _ is_open_univ trivial,
-    rcases exists_mem_of_ne_empty this with ⟨_, ⟨_, a, _⟩⟩,
-    exact ⟨a⟩ },
-  { exact ⟨(c : completion α)⟩ }
-end
-
+section extension
+variables {f : α → β}
 variables [complete_space β] [separated β]
 
-/-- "Extension" to the completion.
-    Defined for any map `f` but returns garbage if `f` is not uniformly continuous -/
-noncomputable
-def completion_extension (f : α → β) : completion α → β :=
-if H : uniform_continuous f then
-  let g₀ := (uniform_embedding_pure_cauchy.dense_embedding pure_cauchy_dense).extend f in
-  have g₀_unif : uniform_continuous g₀ :=
-    uniform_continuous_uniformly_extend uniform_embedding_pure_cauchy pure_cauchy_dense H,
-  have compat : ∀ p q : Cauchy α, p ≈ q → g₀ p = g₀ q :=
-    assume p q h, eq_of_separated_of_uniform_continuous g₀_unif h,
-  quotient.lift g₀ compat
-else
-  λ x, f (classical.inhabited_of_nonempty $ nonempty_completion_iff.1 ⟨x⟩).default
+/-- "Extension" to the completion. Based on `Cauchy.extend`, which is defined for any map `f` but
+returns an arbitrary constant value if `f` is not uniformly continuous -/
+protected def extension (f : α → β) : completion α → β :=
+quotient.lift (extend f) $ assume a b,
+  eq_of_separated_of_uniform_continuous uniform_continuous_extend
+
+lemma uniform_continuous_extension : uniform_continuous (completion.extension f) :=
+uniform_continuous_quotient_lift uniform_continuous_extend
+
+lemma continuous_extension : continuous (completion.extension f) :=
+uniform_continuous_extension.continuous
+
+@[simp] lemma extension_coe (hf : uniform_continuous f) (a : α) : (completion.extension f) a = f a :=
+extend_pure_cauchy hf a
+
+end extension
+
+section map
+variables {f : α → β}
 
 /-- Completion functor acting on morphisms -/
-noncomputable def completion.map (f : α → γ) : completion α → completion γ :=
-completion_extension (coe ∘ f)
-end uniform_space
+protected def map (f : α → γ) : completion α → completion γ :=
+completion.extension (coe ∘ f)
 
-namespace completion_extension
-open uniform_space
-variables {α : Type*} [uniform_space α]
-variables {β : Type*} [uniform_space β]
-variables [complete_space β] [separated β]
+lemma uniform_continuous_map : uniform_continuous (completion.map f) :=
+uniform_continuous_quotient_lift uniform_continuous_extend
 
-variables {f : α → β} (H : uniform_continuous f)
-include H
+lemma continuous_map : continuous (completion.map f) :=
+uniform_continuous_extension.continuous
 
-lemma lifts : f = (completion_extension f) ∘ coe :=
+@[simp] lemma map_coe (hf : uniform_continuous f) (a : α) : (completion.map f) a = f a :=
 begin
-  unfold completion_extension,
-  simp [H],
-  ext x,
-  let lim := H.continuous.tendsto x,
-  have := (uniform_embedding_pure_cauchy.dense_embedding pure_cauchy_dense).extend_e_eq lim,
-  rw ←this,
-  refl
+  rw [completion.map, extension_coe],
+  exact hf.comp (uniform_continuous_coe β)
 end
 
-@[simp]
-lemma lifts' : ∀ a : α, f a = (completion_extension f) a := λ a, congr_fun (lifts H) a
+end map
 
-lemma uniform_continuity : uniform_continuous (completion_extension f) :=
-begin
-  unfold completion_extension,
-  split_ifs,
-  let g := completion_extension f,
-  intros r r_in,
-  let g₀ := (uniform_embedding_pure_cauchy.dense_embedding pure_cauchy_dense).extend f,
-  have g₀_unif : uniform_continuous g₀ :=
-    uniform_continuous_uniformly_extend uniform_embedding_pure_cauchy pure_cauchy_dense H,
+section prod
+variables [uniform_space β]
+protected def prod {α β} [uniform_space α] [uniform_space β] (p : completion α × completion β) : completion (α × β) :=
+quotient.lift_on₂ p.1 p.2 (λa b, ⟦Cauchy.prod (a, b)⟧) $ assume a b c d hab hcd,
+  quotient.sound $ separated_of_uniform_continuous uniform_continuous_prod $
+  separation_prod.2 ⟨hab, hcd⟩
 
-  rw filter.mem_map,
-  dsimp[completion],
-  rw prod_quotient_preimage_eq_image _ rfl r,
-  exact filter.image_mem_map (g₀_unif r_in)
-end
+lemma uniform_continuous_prod : uniform_continuous (@completion.prod α β _ _) :=
+uniform_continuous_quotient_lift₂ $
+  suffices uniform_continuous (quotient.mk ∘ Cauchy.prod),
+  { convert this, ext ⟨a, b⟩, refl },
+  Cauchy.uniform_continuous_prod.comp uniform_continuous_quotient_mk
 
-lemma continuity : continuous (completion_extension f) :=
-uniform_continuous.continuous (uniform_continuity H)
+lemma prod_coe_coe (a : α) (b : β) :
+  completion.prod ((a : completion α), (b : completion β)) = (a, b) :=
+congr_arg quotient.mk $ Cauchy.prod_pure_cauchy_pure_cauchy a b
 
-lemma unique {h : completion α → β} :
-  uniform_continuous h → f = h ∘ coe → h = completion_extension f :=
-begin
-  let g := completion_extension f,
-  have g_unif : uniform_continuous g := uniform_continuity H,
-  intros h_unif h_lifts,
-  change h = g,
-  ext x,
-  have closed_eq : is_closed {x | h x = g x} := is_closed_eq h_unif.continuous g_unif.continuous,
-  have : f = g ∘ coe := lifts H,
-  have eq_on_α : ∀ x, (h ∘ (coe : α → completion α)) x = (g ∘ (coe : α → completion α)) x, by cc,
-  exact (is_closed_property to_completion.dense closed_eq eq_on_α x : _)
-end
-end completion_extension
+end prod
 
-namespace completion
-variables {α : Type*} [uniform_space α] {β : Type*} [uniform_space β]
-open uniform_space uniform_space.pure_cauchy
+section map₂
 
-noncomputable def prod : (completion α) × (completion β) → completion (α × β) :=
-begin
-  let g₀ := λ (a : Cauchy α) (b : Cauchy β),
-    (prod.de.extend (coe : (α × β) → completion (α × β))) (a, b),
+protected def map₂ (f : α → β → γ) (a : completion α) (b : completion β) : completion γ :=
+completion.map (λp:α×β, f p.1 p.2) (completion.prod (a, b))
 
-  refine function.uncurry (quotient.lift₂ g₀ _),
-  { intros a₁ b₁ a₂ b₂ eqv₁ eqv₂,
-    have g₁_uc : uniform_continuous (prod.de.extend (coe : α × β → completion (α × β))),
-    { let ue : uniform_embedding (λ (p : α × β), (pure_cauchy (p.fst), pure_cauchy (p.snd))) :=
-        uniform_embedding.prod uniform_embedding_pure_cauchy uniform_embedding_pure_cauchy,
-      refine uniform_continuous_uniformly_extend ue _ (to_completion.uniform_continuous (α × β)) },
+lemma uniform_continuous_map₂' (f : α → β → γ) :
+  uniform_continuous (λp:completion α×completion β, completion.map₂ f p.1 p.2) :=
+uniform_continuous.comp uniform_continuous_prod completion.uniform_continuous_map
 
-    exact (eq_of_separated_of_uniform_continuous g₁_uc (separation_prod.2 ⟨eqv₁, eqv₂⟩) : _) },
-end
+lemma continuous_map₂ {δ} [topological_space δ] {f : α → β → γ}
+  {a : δ → completion α} {b : δ → completion β} (ha : continuous a) (hb : continuous b) :
+  continuous (λd:δ, completion.map₂ f (a d) (b d)) :=
+(continuous.prod_mk ha hb).comp (uniform_continuous_map₂' f).continuous
 
-lemma prod.uc : uniform_continuous (@prod α _ β _) :=
-begin
-  dsimp[prod],
-  rw function.uncurry_def,
-  apply uniform_continuous_quotient_lift₂,
-  suffices : uniform_continuous (dense_embedding.extend prod.de (coe : α × β → completion (α × β))),
-  by simpa,
-  exact uniform_continuous_uniformly_extend
-    (uniform_embedding.prod uniform_embedding_pure_cauchy uniform_embedding_pure_cauchy)
-    prod.de.dense (to_completion.uniform_continuous _)
-end
+lemma map₂_coe_coe (a : α) (b : β) (f : α → β → γ) (hf : uniform_continuous (λp:α×β, f p.1 p.2)) :
+  completion.map₂ f (a : completion α) (b : completion β) = f a b :=
+by rw [completion.map₂, completion.prod_coe_coe, completion.map_coe hf]
 
-@[simp]
-lemma prod.lifts (a : α) (b : β) : @prod α _ β _ (a, b) = (a, b) :=
-begin
-  let f := (coe : (α × β) → completion (α × β)),
-  change dense_embedding.extend prod.de f (pure_cauchy a, pure_cauchy b) = ⟦pure_cauchy (a, b)⟧,
+end map₂
 
-  have hf : filter.tendsto f (nhds (a, b)) (nhds (f (a,b))) :=
-    continuous.tendsto (to_completion.continuous _) _,
+section group
 
-  exact (prod.de.extend_e_eq hf : _)
-end
-/-- Canonical map completion (α × β) → (completion α) × (completion β). Not used in group_completion. -/
-noncomputable def prod_inv : completion (α × β) → (completion α) × (completion β) :=
-completion_extension (λ x, (x.1, x.2))
+instance [has_zero α] : has_zero (completion α) := ⟨(0 : α)⟩
+instance [has_neg α] : has_neg (completion α) := ⟨completion.map (λa, -a : α → α)⟩
+instance [has_add α] : has_add (completion α) := ⟨completion.map₂ (+)⟩
 
-@[simp]
-lemma prod_inv.lifts : ∀ x : α × β, prod_inv (x : completion (α × β)) = ((x.1 : completion α), (x.2 : completion β)) :=
-begin
-  intros x,
-  have u1 := uniform_continuous.comp uniform_continuous_fst (to_completion.uniform_continuous α),
-  have u2 := uniform_continuous.comp uniform_continuous_snd (to_completion.uniform_continuous β),
-  have := completion_extension.lifts' (uniform_continuous.prod_mk u1 u2) x,
-  finish
-end
+lemma coe_zero [has_zero α] : ((0 : α) : completion α) = 0 := rfl
 
-lemma prod_inv.uc : uniform_continuous (@prod_inv α _ β _) :=
-begin
-  have u1 := uniform_continuous.comp uniform_continuous_fst (to_completion.uniform_continuous α),
-  have u2 := uniform_continuous.comp uniform_continuous_snd (to_completion.uniform_continuous β),
-  exact completion_extension.uniform_continuity (uniform_continuous.prod_mk u1 u2)
-end
+section uniform_add_group
+variables [add_group α] [uniform_add_group α]
+
+lemma coe_neg (a : α) : ((- a : α) : completion α) = - a :=
+(map_coe uniform_continuous_neg' a).symm
+
+lemma coe_add (a b : α) : ((a + b : α) : completion α) = a + b :=
+(map₂_coe_coe a b (+) uniform_continuous_add').symm
+
+instance : add_group (completion α) :=
+{ zero_add     := assume a, completion.induction_on a
+    (is_closed_eq (continuous_map₂ continuous_const continuous_id) continuous_id)
+    (assume a, show 0 + (a : completion α) = a, by rw [← coe_zero, ← coe_add, zero_add]),
+  add_zero     := assume a, completion.induction_on a
+    (is_closed_eq (continuous_map₂ continuous_id continuous_const) continuous_id)
+    (assume a, show (a : completion α) + 0 = a, by rw [← coe_zero, ← coe_add, add_zero]),
+  add_left_neg := assume a, completion.induction_on a
+    (is_closed_eq (continuous_map₂ completion.continuous_map continuous_id) continuous_const)
+    (assume a, show - (a : completion α) + a = 0, by rw [← coe_neg, ← coe_add, add_left_neg, coe_zero]),
+  add_assoc    := assume a b c, completion.induction_on₃ a b c
+    (is_closed_eq
+      (continuous_map₂
+        (continuous_map₂ continuous_fst (continuous_snd.comp continuous_fst)) (continuous_snd.comp continuous_snd))
+      (continuous_map₂ continuous_fst
+        (continuous_map₂ (continuous_snd.comp continuous_fst) (continuous_snd.comp continuous_snd))))
+    (assume a b c, show (a : completion α) + b + c = a + (b + c),
+      by repeat { rw [← coe_add] }; rw [add_assoc]),
+  .. completion.has_zero, .. completion.has_neg, ..completion.has_add }
+
+instance : uniform_add_group (completion α) :=
+⟨ (uniform_continuous.prod_mk uniform_continuous_fst
+  (uniform_continuous_snd.comp uniform_continuous_map)).comp (uniform_continuous_map₂' (+))  ⟩
+
+instance is_add_group_hom_coe : is_add_group_hom (coe : α → completion α) :=
+⟨ coe_add ⟩
+
+lemma is_add_group_hom_extension [add_group β] [uniform_add_group β] [complete_space β] [separated β]
+  {f : α → β} [is_add_group_hom f] (hf : continuous f) : is_add_group_hom (completion.extension f) :=
+have hf : uniform_continuous f, from uniform_continuous_of_continuous hf,
+⟨assume a b, completion.induction_on₂ a b
+  (is_closed_eq
+    (continuous_add'.comp continuous_extension)
+    (continuous_add (continuous_fst.comp continuous_extension) (continuous_snd.comp continuous_extension)))
+  (assume a b, by rw [← coe_add, extension_coe hf, extension_coe hf, extension_coe hf, is_add_group_hom.add f])⟩
+
+lemma is_add_group_hom_map [add_group β] [uniform_add_group β]
+  {f : α → β} [is_add_group_hom f] (hf : continuous f) : is_add_group_hom (completion.map f) :=
+is_add_group_hom_extension (hf.comp (continuous_coe _))
+
+section instance_max_depth
+-- TODO: continuous_add requires some long proofs through
+-- uniform_add_group / topological_add_group w.r.t prod / completion etc
+set_option class.instance_max_depth 52
+-- set_option trace.class_instances true
+
+lemma is_add_group_hom_prod [add_group β] [uniform_add_group β] :
+  is_add_group_hom (@completion.prod α β _ _) :=
+⟨assume ⟨a₁, a₂⟩ ⟨b₁, b₂⟩,
+  begin
+    refine completion.induction_on₄ a₁ a₂ b₁ b₂ (is_closed_eq _ _) _,
+    { refine continuous.comp _ uniform_continuous_prod.continuous,
+      refine continuous_add _ _,
+      exact continuous.prod_mk (continuous_fst.comp continuous_fst) (continuous_fst.comp continuous_snd),
+      exact continuous.prod_mk (continuous_snd.comp continuous_fst) (continuous_snd.comp continuous_snd) },
+    { refine continuous_add _ _,
+      refine continuous.comp _ uniform_continuous_prod.continuous,
+      exact continuous.prod_mk (continuous_fst.comp continuous_fst) (continuous_fst.comp continuous_snd),
+      refine continuous.comp _ uniform_continuous_prod.continuous,
+      exact continuous.prod_mk (continuous_snd.comp continuous_fst) (continuous_snd.comp continuous_snd) },
+    { assume a b c d,
+      show completion.prod (↑a + ↑c, ↑b + ↑d) = completion.prod (↑a, ↑b) + completion.prod (↑c, ↑d),
+      rw [← coe_add, ← coe_add, prod_coe_coe, prod_coe_coe, prod_coe_coe, ← coe_add],
+      refl }
+  end⟩
+
+end instance_max_depth
+
+end uniform_add_group
+
+instance [add_comm_group α] [uniform_add_group α] : add_comm_group (completion α) :=
+{ add_comm  := assume a b, completion.induction_on₂ a b
+    (is_closed_eq (continuous_map₂ continuous_fst continuous_snd) (continuous_map₂ continuous_snd continuous_fst))
+    (assume a b, by rw [← coe_add, ← coe_add, add_comm]),
+  .. completion.add_group }
+
+end group
+
 end completion
 
-namespace uniform_space
-variables {α : Type*} [uniform_space α]
-variables {β : Type*} [uniform_space β]
-variables {γ : Type*} [uniform_space γ]
-open uniform_space function
-
-noncomputable def completion.map₂ (f : α → β → γ) : completion α × completion β → completion γ :=
-  completion.map (uncurry f) ∘ completion.prod
 end uniform_space
-
-namespace completion.map
-open uniform_space uniform_space.completion
-variables {α : Type*} [uniform_space α]
-variables {β : Type*} [uniform_space β]
-variables {γ : Type*} [uniform_space γ]
-variables {δ : Type*} [uniform_space δ]
-
-variables {f : α → β} (H : uniform_continuous f)
-variables {g : β → γ} (H' : uniform_continuous g)
-
-lemma lifts : coe ∘ f = (map f) ∘ coe :=
-completion_extension.lifts $ uniform_continuous.comp H (to_completion.uniform_continuous β)
-
-lemma lifts' : ∀ a : α, (f a : completion β) = map f a :=
-congr_fun (lifts H)
-
-lemma unique {f' : completion α → completion β} :
-  uniform_continuous f' → coe ∘ f = f' ∘ coe → f' = map f :=
-completion_extension.unique $ uniform_continuous.comp H (to_completion.uniform_continuous β)
-
-lemma uniform_continuity : uniform_continuous (map f) :=
-completion_extension.uniform_continuity $ uniform_continuous.comp H (to_completion.uniform_continuous β)
-
-protected lemma id : completion.map (@id α) = id :=
-by rw (unique uniform_continuous_id uniform_continuous_id) ; simp
-
-@[simp]
-protected lemma const (a : α) : completion.map (λ x : α, a) = (λ x, a) :=
-by rw unique uniform_continuous_const uniform_continuous_const ; refl
-
-lemma prod_prod_inv : completion.prod ∘ (@completion.prod_inv α _ β _) = id :=
-begin
-  rw ←completion.map.id,
-  apply completion.map.unique uniform_continuous_id
-    (uniform_continuous.comp completion.prod_inv.uc completion.prod.uc),
-  ext x,
-  simp
-end
-
-lemma prod_inv_prod : completion.prod_inv ∘ (@completion.prod α _ β _) = id :=
-begin
-  funext x,
-  have closed : is_closed {x | (completion.prod_inv ∘ (@completion.prod α _ β _)) x = id x},
-  { have c₁ : continuous (completion.prod_inv ∘ (@completion.prod α _ β _)) :=
-      continuous.comp (completion.prod.uc.continuous) (completion.prod_inv.uc.continuous),
-    exact is_closed_eq c₁ continuous_id },
-
-  exact (is_closed_property to_completion.dense₂ closed (by simp) x : _)
-end
-
-include H H'
-lemma comp : completion.map (g ∘ f) = (map g) ∘ map f :=
-begin
-  let l  := completion.map f,
-  let l' := completion.map g,
-  have : uniform_continuous (g ∘ f) := uniform_continuous.comp H H',
-  have : uniform_continuous (l' ∘ l ):=
-    uniform_continuous.comp (uniform_continuity H) (uniform_continuity H'),
-  have : coe ∘ g ∘ f = l' ∘ l ∘ coe  := calc
-    (coe ∘ g) ∘ f = (l' ∘ coe) ∘ f : by rw completion.map.lifts H'
-    ... = l' ∘ (coe ∘ f) : rfl
-    ... = l' ∘ (l  ∘ coe) : by rw completion.map.lifts H,
-  apply eq.symm,
-  apply unique ; assumption
-end
-omit H H'
-
-open function
-variables {h : α → β → γ} (h_uc : uniform_continuous (uncurry h))
-
-include h_uc
-lemma lifts₂ : coe ∘ (uncurry h) = (map₂ h) ∘ (λ p, (p.1, p.2)) :=
-begin
-  ext x,
-  rw lifts h_uc,
-  apply congr_arg (completion.map (uncurry h)),
-  simp
-end
-
-lemma lifts₂' : ∀ (a : α) (b : β), (h a b : completion γ) = map₂ h (a, b) :=
-λ a b, congr_fun (lifts₂ h_uc) (a,b)
-
-lemma uniform_continuity₂ : uniform_continuous (map₂ h) :=
-uniform_continuous.comp completion.prod.uc (uniform_continuity h_uc)
-
-lemma map₂_map_map {f : δ → α} {g : δ → β} (f_uc : uniform_continuous f) (g_uc : uniform_continuous g) :
-  completion.map (λ x, h (f x) (g x)) = λ y, map₂ h (map f y, map g y) :=
-begin
-  apply eq.symm,
-  have uc₁ := (f_uc.prod_mk g_uc).comp h_uc,
-  have uc₂ := ((uniform_continuity f_uc).prod_mk (uniform_continuity g_uc)).comp (uniform_continuity₂ h_uc),
-  apply unique uc₁ uc₂,
-  ext x,
-  change (h (f x) (g x) : completion γ) = map₂ h (map f x, map g x),
-  rw [←lifts' f_uc x, ←lifts' g_uc x, lifts₂' h_uc]
-end
-
-end completion.map

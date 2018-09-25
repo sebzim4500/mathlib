@@ -9,7 +9,7 @@ TODO: generalize `topological_monoid` and `topological_add_monoid` to semigroups
 `topological_operator α (*)`.
 -/
 import order.liminf_limsup
-import algebra.big_operators algebra.group
+import algebra.big_operators algebra.group algebra.pi_instances
 import data.set.intervals
 import analysis.topology.topological_space analysis.topology.continuity analysis.topology.uniform_space
 
@@ -131,6 +131,16 @@ lemma continuous_list_sum [topological_space β] {f : γ → β → α} (l : lis
 continuous_iff_tendsto.2 $ assume x, tendsto_list_sum l $ assume c hc,
   continuous_iff_tendsto.1 (h c hc) x
 
+instance [topological_space β] [add_monoid β] [topological_add_monoid β] :
+  topological_add_monoid (α × β) :=
+⟨continuous.prod_mk
+  (continuous_add
+    (continuous_fst.comp continuous_fst)
+    (continuous_snd.comp continuous_fst))
+  (continuous_add
+    (continuous_fst.comp continuous_snd)
+    (continuous_snd.comp continuous_snd)) ⟩
+
 end
 
 section
@@ -187,6 +197,10 @@ lemma tendsto_sub [topological_add_group α] {f : β → α} {g : β → α} {x 
   (hf : tendsto f x (nhds a)) (hg : tendsto g x (nhds b)) : tendsto (λx, f x - g x) x (nhds (a - b)) :=
 by simp; exact tendsto_add hf (tendsto_neg hg)
 
+instance [topological_add_group α] [topological_space β] [add_group β] [topological_add_group β] :
+  topological_add_group (α × β) :=
+{ continuous_neg := continuous.prod_mk (continuous_neg continuous_fst) (continuous_neg continuous_snd) }
+
 end topological_add_group
 
 section uniform_add_group
@@ -230,6 +244,15 @@ uniform_continuous_add uniform_continuous_fst uniform_continuous_snd
 instance uniform_add_group.to_topological_add_group : topological_add_group α :=
 { continuous_add := uniform_continuous_add'.continuous,
   continuous_neg := uniform_continuous_neg'.continuous }
+
+instance [uniform_space β] [add_group β] [uniform_add_group β] : uniform_add_group (α × β) :=
+⟨uniform_continuous.prod_mk
+  (uniform_continuous_sub
+    (uniform_continuous_fst.comp uniform_continuous_fst)
+    (uniform_continuous_snd.comp uniform_continuous_fst))
+  (uniform_continuous_sub
+    (uniform_continuous_fst.comp uniform_continuous_snd)
+    (uniform_continuous_snd.comp uniform_continuous_snd)) ⟩
 
 lemma uniformity_translate (a : α) : uniformity.map (λx:α×α, (x.1 + a, x.2 + a)) = uniformity :=
 le_antisymm

@@ -1,3 +1,4 @@
+#exit
 
 lemma half_nhd (U ∈ (nhds (0 : G)).sets) :
   ∃ V ∈ (nhds (0 : G)).sets, ∀ v w ∈ V, v + w ∈ U :=

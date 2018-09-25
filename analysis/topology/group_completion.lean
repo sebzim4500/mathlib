@@ -1,13 +1,14 @@
+#exit
 import analysis.topology.completion
 import analysis.topology.topological_structures
 
 universe u
 variables {α : Type*} [uniform_space α]
-variables (G : Type u) [add_comm_group G] [topological_space G] [topological_add_group G]  
+variables (G : Type u) [add_comm_group G] [topological_space G] [topological_add_group G]
 
 open uniform_space function set uniform_space.to_completion
 
-lemma uniform_continuous_add'' [add_group α] [uniform_add_group α] : 
+lemma uniform_continuous_add'' [add_group α] [uniform_add_group α] :
   uniform_continuous (uncurry (+) : α × α → α) :=
 by rw uncurry_def ; exact uniform_continuous_add'
 
@@ -22,67 +23,67 @@ instance completion_zero : has_zero (completion G) := ⟨(0:G)⟩
 noncomputable instance completion_neg : has_neg (completion G) := ⟨completion.map (λ x, -x)⟩
 
 variable {G}
-lemma completion.add_lift (a b : G) : (a : completion G) + (b : completion G) = (a + b : G) := 
+lemma completion.add_lift (a b : G) : (a : completion G) + (b : completion G) = (a + b : G) :=
 by simpa only [completion.map.lifts₂' uniform_continuous_add'']
 
-lemma completion.neg_lift (a : G) : -(a : completion G) = (-a : G) := 
+lemma completion.neg_lift (a : G) : -(a : completion G) = (-a : G) :=
 by simpa only [completion.map.lifts' uniform_continuous_neg']
 
-lemma completion.uniform_continuous_add' : uniform_continuous (uncurry_add G) := 
+lemma completion.uniform_continuous_add' : uniform_continuous (uncurry_add G) :=
 completion.map.uniform_continuity₂ uniform_continuous_add''
 
-lemma completion.uniform_continuous_add {f g : α → completion G} (hf : uniform_continuous f) (hg : uniform_continuous g) : uniform_continuous (λ x, f x + g x) := 
+lemma completion.uniform_continuous_add {f g : α → completion G} (hf : uniform_continuous f) (hg : uniform_continuous g) : uniform_continuous (λ x, f x + g x) :=
 uniform_continuous.comp (uniform_continuous.prod_mk hf hg) completion.uniform_continuous_add'
 
-lemma completion.continuous_add' : continuous (uncurry_add G) := 
+lemma completion.continuous_add' : continuous (uncurry_add G) :=
 uniform_continuous.continuous completion.uniform_continuous_add'
 
 lemma completion.continuous_add'' : continuous (λ x : (completion G) × (completion G), x.1 + x.2) :=
 begin
   change continuous (λ (x : (completion G) × (completion G)), (uncurry_add G) (x.fst, x.snd)),
   simp[completion.continuous_add']
-end 
-      
+end
 
-lemma completion.continuous_add {f g : α → completion G} (hf : continuous f) (hg : continuous g) : continuous (λ x, f x + g x) := 
+
+lemma completion.continuous_add {f g : α → completion G} (hf : continuous f) (hg : continuous g) : continuous (λ x, f x + g x) :=
 continuous.comp (continuous.prod_mk hf hg) completion.continuous_add'
 
-lemma completion.uniform_continuous_neg' : uniform_continuous (λ x : completion G, -x) := 
+lemma completion.uniform_continuous_neg' : uniform_continuous (λ x : completion G, -x) :=
 completion.map.uniform_continuity uniform_continuous_neg'
 
-lemma completion.uniform_continuous_neg {f : α → completion G} (hf : uniform_continuous f) : uniform_continuous (λ x, -f x) := 
+lemma completion.uniform_continuous_neg {f : α → completion G} (hf : uniform_continuous f) : uniform_continuous (λ x, -f x) :=
 uniform_continuous.comp hf completion.uniform_continuous_neg'
 
-lemma completion.continuous_neg' : continuous (λ x : completion G, -x) := 
+lemma completion.continuous_neg' : continuous (λ x : completion G, -x) :=
 uniform_continuous.continuous completion.uniform_continuous_neg'
 
-lemma completion.continuous_neg {f : α → completion G} (hf : continuous f) : continuous (λ x, -f x) := 
+lemma completion.continuous_neg {f : α → completion G} (hf : continuous f) : continuous (λ x, -f x) :=
 continuous.comp hf completion.continuous_neg'
 
-noncomputable instance completion_group_str : add_comm_group (completion G) := 
+noncomputable instance completion_group_str : add_comm_group (completion G) :=
 begin
   let H := completion G,
   haveI : t2_space (H) := by {dsimp [H] ; exact uniform_space.completion_t2 G},
   refine_struct { .. completion_add G, ..completion_zero G, ..completion_neg G, .. },
   { intros a b c,
-    have closed : is_closed {x : H × H × H | x.1 + x.2.1 + x.2.2 = x.1 + (x.2.1 + x.2.2) }, 
-    { 
-      have c₁ : continuous (λ x : H × (H × H), (x.1 + x.2.1) + x.2.2), 
+    have closed : is_closed {x : H × H × H | x.1 + x.2.1 + x.2.2 = x.1 + (x.2.1 + x.2.2) },
+    {
+      have c₁ : continuous (λ x : H × (H × H), (x.1 + x.2.1) + x.2.2),
       { have c : continuous (λ x : H × (H × H), (x.2.1 + x.2.2) + x.1) :=
           completion.continuous_add (continuous.comp continuous_snd completion.continuous_add'') continuous_fst,
         have c' : continuous (λ x : H × H × H, (x.2.2, (x.1, x.2.1))) :=
           have c'' : continuous (λ x : H × H × H, x.2.2) :=
             continuous.comp continuous_snd continuous_snd,
           have c''' : continuous (λ x : H × H × H, (x.1, x.2.1)) :=
-          continuous.prod_mk continuous_fst (continuous.comp continuous_snd continuous_fst), 
+          continuous.prod_mk continuous_fst (continuous.comp continuous_snd continuous_fst),
           continuous.prod_mk c'' c''',
         exact continuous.comp c' c },
-      have c₂ : continuous (λ x : H × (H × H), x.1 + (x.2.1 + x.2.2)) := 
+      have c₂ : continuous (λ x : H × (H × H), x.1 + (x.2.1 + x.2.2)) :=
         completion.continuous_add continuous_fst (continuous.comp continuous_snd completion.continuous_add''),
       exact is_closed_eq c₁ c₂ },
     have := is_closed_property dense₃ closed (by {intro a, repeat { rw completion.add_lift }, rw add_assoc }),
     exact this ⟨a, b, c⟩ },
-  { have closed : is_closed {x : H | 0 + x = x } := 
+  { have closed : is_closed {x : H | 0 + x = x } :=
       is_closed_eq (completion.continuous_add continuous_const continuous_id) continuous_id,
     exact is_closed_property dense₁ closed (by {intro x, change ((0:G):completion G) + x = x, rw completion.add_lift, rw zero_add}) },
   { have closed : is_closed {x : H | x + (0:G) = x } :=
@@ -103,7 +104,7 @@ end
 instance completion_top_space : topological_space (completion G) := by unfold completion ; apply_instance
 instance completion_prod_top : topological_space ((completion G) × (completion G)) := by unfold completion ; apply_instance
 
-instance completion_group_top : topological_add_group (completion G) := 
+instance completion_group_top : topological_add_group (completion G) :=
 begin
   refine {..}, -- no idea why I cannot directly construct this instance
   { exact completion.continuous_add'' },
@@ -111,14 +112,14 @@ begin
 end
 
 
-instance to_completion_mph : is_add_group_hom (coe : G → completion G) := 
+instance to_completion_mph : is_add_group_hom (coe : G → completion G) :=
 ⟨begin
   intros a b,
   change ↑(a + b)= ↑a + ↑b,
   exact eq.symm (completion.add_lift a b)
 end⟩
 
-variables {H : Type u} [add_comm_group H] [topological_space H] [topological_add_group H] 
+variables {H : Type u} [add_comm_group H] [topological_space H] [topological_add_group H]
 
 /-- The following would be really good to know. Hopefully it would allow to unsorry completion_map_hom below -/
 lemma same_uniformity : uniform_space.completion_uniform_space H = topological_add_group.to_uniform_space (completion H) :=
@@ -129,24 +130,24 @@ begin
   sorry
 end
 
-instance completion_extension_hom [complete_space H] [separated H] 
-  {f : G → H} [is_add_group_hom f] (h : continuous f) : 
+instance completion_extension_hom [complete_space H] [separated H]
+  {f : G → H} [is_add_group_hom f] (h : continuous f) :
   is_add_group_hom (completion_extension f) :=
 ⟨begin
-  
+
   let GG := completion G,
   let ff := completion_extension f,
   have f_uc := uniform_continuous_of_continuous h,
   have ff_c : continuous ff := completion_extension.continuity f_uc,
-    
+
   have closed : is_closed {x : GG × GG | ff (x.1 + x.2) = ff x.1 + ff x.2 },
-  { have c₀ : continuous (λ x : GG × GG, x.1 + x.2), 
+  { have c₀ : continuous (λ x : GG × GG, x.1 + x.2),
       { change continuous (λ (x : GG × GG), (uncurry_add G) (x.fst, x.snd)),
         simp[completion.continuous_add'] },
-    
+
     have c₁ : continuous (λ a : GG × GG, ff a.1) := continuous.comp continuous_fst ff_c,
     have c₂ : continuous (λ a : GG × GG, ff a.2) := continuous.comp continuous_snd ff_c,
-    
+
     haveI t2 : t2_space H := separated_t2, -- No idea why this is needed
     exact is_closed_eq  (continuous.comp c₀ ff_c) (continuous_add c₁ c₂) },
   have eq_on_G : ∀ (a : G × G), ff (a.1 +  a.2) = ff a.1 + ff a.2,
@@ -162,9 +163,9 @@ instance completion_map_hom {f : G → H} [is_add_group_hom f] (h : continuous f
   is_add_group_hom (completion.map f) :=
 begin
   dsimp [completion.map],
-  
+
   have cont : continuous (coe ∘ f) := continuous.comp h (to_completion.continuous H),
   have := @completion_extension_hom G _ _ _ (completion H) _ _ _,
-  
+
   sorry -- cannot apply the above lemma which is not for the correct uniformity on completion H
 end

@@ -939,11 +939,10 @@ variables
 
 local notation `ψ` := (h_e.dense_embedding h_dense).extend f
 
-lemma uniformly_extend_of_emb [cγ : complete_space γ] [sγ : separated γ] {b : β} :
-  ψ (e b) = f b :=
-dense_embedding.extend_e_eq _ $ continuous_iff_tendsto.mp h_f.continuous b
+lemma uniformly_extend_of_emb (b : β) : ψ (e b) = f b :=
+dense_embedding.extend_e_eq _ b
 
-lemma uniformly_extend_exists [complete_space γ] [sγ : separated γ] {a : α} :
+lemma uniformly_extend_exists [complete_space γ] (a : α) :
   ∃c, tendsto f (comap e (nhds a)) (nhds c) :=
 let de := (h_e.dense_embedding h_dense) in
 have cauchy (nhds a), from cauchy_nhds,
@@ -953,12 +952,19 @@ have cauchy (map f (comap e (nhds a))), from
   cauchy_map h_f this,
 complete_space.complete this
 
-lemma uniformly_extend_spec [complete_space γ] [sγ : separated γ] {a : α} :
+lemma uniformly_extend_spec [complete_space γ] (h_f : uniform_continuous f) (a : α) :
   tendsto f (comap e (nhds a)) (nhds (ψ a)) :=
-@lim_spec _ (id _) _ _ $ uniformly_extend_exists h_e h_dense h_f
+let de := (h_e.dense_embedding h_dense) in
+begin
+  by_cases ha : a ∈ range e,
+  { rcases ha with ⟨b, rfl⟩,
+    rw [uniformly_extend_of_emb, de.induced],
+    exact h_f.continuous.tendsto _ },
+  { simp only [dense_embedding.extend, dif_neg ha],
+    exact (@lim_spec _ (id _) _ _ $ uniformly_extend_exists h_e h_dense h_f _) }
+end
 
-lemma uniform_continuous_uniformly_extend [cγ : complete_space γ] [sγ : separated γ] :
-  uniform_continuous ψ :=
+lemma uniform_continuous_uniformly_extend [cγ : complete_space γ] : uniform_continuous ψ :=
 assume d hd,
 let ⟨s, hs, hs_comp⟩ := (mem_lift'_sets $
   monotone_comp_rel monotone_id $ monotone_comp_rel monotone_id monotone_id).mp (comp_le_uniformity3 hd) in
@@ -968,7 +974,7 @@ have h_pnt : ∀{a m}, m ∈ (nhds a).sets → ∃c, c ∈ f '' preimage e m ∧
     from map_ne_bot (h_e.dense_embedding h_dense).comap_nhds_neq_bot,
   have (f '' preimage e m) ∩ ({c | (c, ψ a) ∈ s } ∩ {c | (ψ a, c) ∈ s }) ∈ (map f (comap e (nhds a))).sets,
     from inter_mem_sets (image_mem_map $ preimage_mem_comap $ hm)
-      (uniformly_extend_spec h_e h_dense h_f $ inter_mem_sets (mem_nhds_right _ hs) (mem_nhds_left _ hs)),
+      (uniformly_extend_spec h_e h_dense h_f _ (inter_mem_sets (mem_nhds_right _ hs) (mem_nhds_left _ hs))),
   inhabited_of_mem_sets nb this,
 have preimage (λp:β×β, (f p.1, f p.2)) s ∈ (@uniformity β _).sets,
   from h_f hs,
@@ -1240,7 +1246,6 @@ lemma uniform_embedding_subtype_emb {α : Type*} {β : Type*} [uniform_space α]
 
 lemma uniform_extend_subtype {α : Type*} {β : Type*} {γ : Type*}
   [uniform_space α] [uniform_space β] [uniform_space γ] [complete_space γ]
-  [inhabited γ] [separated γ]
   {p : α → Prop} {e : α → β} {f : α → γ} {b : β} {s : set α}
   (hf : uniform_continuous (λx:subtype p, f x.val))
   (he : uniform_embedding e) (hd : ∀x:β, x ∈ closure (range e))
@@ -1255,7 +1260,7 @@ have ue' : uniform_embedding (de.subtype_emb p),
 have b ∈ closure (e '' {x | p x}),
   from (closure_mono $ mono_image $ hp) (mem_of_nhds hb),
 let ⟨c, (hc : tendsto (f ∘ subtype.val) (comap (de.subtype_emb p) (nhds ⟨b, this⟩)) (nhds c))⟩ :=
-  uniformly_extend_exists ue' de'.dense hf in
+  uniformly_extend_exists ue' de'.dense hf _ in
 begin
   rw [nhds_subtype_eq_comap] at hc,
   simp [comap_comap_comp] at hc,
