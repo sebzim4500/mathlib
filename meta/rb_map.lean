@@ -32,6 +32,17 @@ m1.fold m2
    let nv := v + m2.zfind n in
    if nv = 0 then m.erase n else m.insert n nv)
 
+variables {m : Type → Type*} [monad m]
+open function
+
+meta def mfilter {key val} [has_lt key] [decidable_rel ((<) : key → key → Prop)]
+  (s : rb_map key val) (P : key → val → m bool) : m (rb_map.{0 0} key val) :=
+rb_map.of_list <$> s.to_list.mfilter (uncurry P)
+
+meta def mmap {key val val'} [has_lt key] [decidable_rel ((<) : key → key → Prop)]
+  (s : rb_map key val) (f : val → m val') : m (rb_map.{0 0} key val') :=
+rb_map.of_list <$> s.to_list.mmap (λ ⟨a,b⟩, prod.mk a <$> f b)
+
 meta def scale {α β} [has_lt α] [decidable_rel ((<) : α → α → Prop)] [has_mul β] (b : β) (m : rb_map α β) : rb_map α β :=
 m.map ((*) b)
 
