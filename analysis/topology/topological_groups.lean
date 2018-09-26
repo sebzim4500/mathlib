@@ -116,17 +116,17 @@ variable {G}
 
 lemma uniformity_eq_comap_nhds_zero' : uniformity = comap (λp:G×G, p.2 - p.1) (nhds (0 : G)) := rfl
 
-def topological_add_group_is_uniform : uniform_add_group G :=
+lemma topological_add_group_is_uniform : uniform_add_group G :=
+have tendsto
+    ((λp:(G×G), p.1 - p.2) ∘ (λp:(G×G)×(G×G), (p.1.2 - p.1.1, p.2.2 - p.2.1)))
+    (comap (λp:(G×G)×(G×G), (p.1.2 - p.1.1, p.2.2 - p.2.1)) ((nhds 0).prod (nhds 0)))
+    (nhds (0 - 0)) :=
+  tendsto_comap.comp (tendsto_sub tendsto_fst tendsto_snd),
 begin
   constructor,
   rw [uniform_continuous, uniformity_prod_eq_prod, tendsto_map'_iff,
     @uniformity_eq_comap_nhds_zero' G _inst_1 _inst_2 _inst_3, tendsto_comap_iff, prod_comap_comap_eq],
-  suffices : tendsto
-    ((λp:(G×G), p.1 - p.2) ∘ (λp:(G×G)×(G×G), (p.1.2 - p.1.1, p.2.2 - p.2.1)))
-    (comap (λp:(G×G)×(G×G), (p.1.2 - p.1.1, p.2.2 - p.2.1)) ((nhds 0).prod (nhds 0)))
-    (nhds (0 - 0)),
-  { simpa [(∘)], },
-  refine tendsto_comap.comp (tendsto_sub tendsto_fst tendsto_snd)
+  simpa [(∘)]
 end
 
 end topological_add_comm_group
