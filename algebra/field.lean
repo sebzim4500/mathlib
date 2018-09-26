@@ -93,7 +93,7 @@ by rw [← division_ring.inv_inj (inv_ne_zero ha) hb,
        eq_comm, division_ring.inv_inv ha]
 
 lemma div_neg (a : α) (hb : b ≠ 0) : a / -b = -(a / b) :=
-div_neg_eq_neg_div a hb
+by rw [← division_ring.neg_div_neg_eq _ (neg_ne_zero.2 hb), neg_neg, neg_div]
 
 lemma div_eq_iff_mul_eq (hb : b ≠ 0) : a / b = c ↔ c * b = a :=
 ⟨λ h, by rw [← h, div_mul_cancel _ hb],

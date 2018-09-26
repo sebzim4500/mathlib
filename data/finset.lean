@@ -8,6 +8,8 @@ Finite sets.
 import logic.embedding order.boolean_algebra algebra.order_functions
   data.multiset data.sigma.basic data.set.lattice
 
+set_option profiler true
+set_option trace.simplify.rewrite true
 open multiset subtype nat lattice
 
 variables {α : Type*} {β : Type*} {γ : Type*}
@@ -21,7 +23,7 @@ structure finset (α : Type*) :=
 namespace finset
 
 theorem eq_of_veq : ∀ {s t : finset α}, s.1 = t.1 → s = t
-| ⟨s, _⟩ ⟨t, _⟩ h := by congr; assumption
+| ⟨s, _⟩ ⟨t, _⟩ rfl := rfl
 
 @[simp] theorem val_inj {s t : finset α} : s.1 = t.1 ↔ s = t :=
 ⟨eq_of_veq, congr_arg _⟩
@@ -105,7 +107,7 @@ instance : partial_order (finset α) :=
 
 @[simp] lemma coe_ssubset {s₁ s₂ : finset α} : (↑s₁ : set α) ⊂ ↑s₂ ↔ s₁ ⊂ s₂ :=
 show (↑s₁ : set α) ⊂ ↑s₂ ↔ s₁ ⊆ s₂ ∧ ¬s₂ ⊆ s₁,
-  by simp [set.ssubset_iff_subset_not_subset] {contextual := tt}
+  by simp only [set.ssubset_iff_subset_not_subset, finset.coe_subset]
 
 @[simp] theorem val_lt_iff {s₁ s₂ : finset α} : s₁.1 < s₂.1 ↔ s₁ ⊂ s₂ :=
 and_congr val_le_iff $ not_congr val_le_iff
@@ -130,7 +132,7 @@ theorem eq_empty_of_forall_not_mem {s : finset α} (H : ∀x, x ∉ s) : s = ∅
 eq_of_veq (eq_zero_of_forall_not_mem H)
 
 lemma eq_empty_iff_forall_not_mem {s : finset α} : s = ∅ ↔ ∀ x, x ∉ s :=
-⟨λ h, by simp [h], λ h, eq_empty_of_forall_not_mem h⟩
+⟨by rintro rfl x; exact id, λ h, eq_empty_of_forall_not_mem h⟩
 
 @[simp] theorem val_eq_zero {s : finset α} : s.1 = 0 ↔ s = ∅ := @val_inj _ s ∅
 
@@ -140,7 +142,7 @@ theorem exists_mem_of_ne_empty {s : finset α} (h : s ≠ ∅) : ∃ a : α, a �
 exists_mem_of_ne_zero (mt val_eq_zero.1 h)
 
 @[simp] lemma coe_empty : ↑(∅ : finset α) = (∅ : set α) :=
-by simp [set.ext_iff]
+rfl
 
 /-- `singleton a` is the set `{a}` containing `a` and nothing else. -/
 def singleton (a : α) : finset α := ⟨_, nodup_singleton a⟩
@@ -149,11 +151,11 @@ local prefix `ι`:90 := singleton
 @[simp] theorem singleton_val (a : α) : (ι a).1 = a :: 0 := rfl
 
 @[simp] theorem mem_singleton {a b : α} : b ∈ ι a ↔ b = a :=
-by simp [singleton]
+mem_singleton
 
-theorem not_mem_singleton {a b : α} : a ∉ ι b ↔ a ≠ b := by simp
+theorem not_mem_singleton {a b : α} : a ∉ ι b ↔ a ≠ b := not_iff_not_of_iff mem_singleton
 
-theorem mem_singleton_self (a : α) : a ∈ ι a := by simp
+theorem mem_singleton_self (a : α) : a ∈ ι a := or.inl rfl
 
 theorem singleton_inj {a b : α} : ι a = ι b ↔ a = b :=
 ⟨λ h, mem_singleton.1 (h ▸ mem_singleton_self _), congr_arg _⟩
@@ -161,7 +163,7 @@ theorem singleton_inj {a b : α} : ι a = ι b ↔ a = b :=
 @[simp] theorem singleton_ne_empty (a : α) : ι a ≠ ∅ := ne_empty_of_mem (mem_singleton_self _)
 
 @[simp] lemma coe_singleton (a : α) : ↑(ι a) = ({a} : set α) :=
-by simp [set.ext_iff]
+rfl
 
 /- insert -/
 section decidable_eq
@@ -177,35 +179,35 @@ theorem insert_def (a : α) (s : finset α) : insert a s = ⟨_, nodup_ndinsert 
 @[simp] theorem insert_val (a : α) (s : finset α) : (insert a s).1 = ndinsert a s.1 := rfl
 
 theorem insert_val' (a : α) (s : finset α) : (insert a s).1 = erase_dup (a :: s.1) :=
-by simp [erase_dup_cons]
+by rw [erase_dup_cons, erase_dup_eq_self]; refl
 
 theorem insert_val_of_not_mem {a : α} {s : finset α} (h : a ∉ s) : (insert a s).1 = a :: s.1 :=
 by rw [insert_val, ndinsert_of_not_mem h]
 
 @[simp] theorem mem_insert {a b : α} {s : finset α} : a ∈ insert b s ↔ a = b ∨ a ∈ s := mem_ndinsert
 
-theorem mem_insert_self (a : α) (s : finset α) : a ∈ insert a s := by simp
-theorem mem_insert_of_mem {a b : α} {s : finset α} (h : a ∈ s) : a ∈ insert b s := by simp *
+theorem mem_insert_self (a : α) (s : finset α) : a ∈ insert a s := mem_ndinsert_self a s.1
+theorem mem_insert_of_mem {a b : α} {s : finset α} (h : a ∈ s) : a ∈ insert b s := mem_ndinsert_of_mem h
 theorem mem_of_mem_insert_of_ne {a b : α} {s : finset α} (h : b ∈ insert a s) : b ≠ a → b ∈ s :=
 (mem_insert.1 h).resolve_left
 
 @[simp] lemma coe_insert (a : α) (s : finset α) : ↑(insert a s) = (insert a ↑s : set α) :=
-by simp [set.ext_iff]
+set.ext $ λ x, by simp only [mem_coe, mem_insert, set.mem_insert_iff]
 
 @[simp] theorem insert_eq_of_mem {a : α} {s : finset α} (h : a ∈ s) : insert a s = s :=
 eq_of_veq $ ndinsert_of_mem h
 
 @[simp] theorem insert.comm (a b : α) (s : finset α) : insert a (insert b s) = insert b (insert a s) :=
-ext.2 $ by simp [or.left_comm]
+ext.2 $ λ x, by simp only [finset.mem_insert, or.left_comm]
 
 @[simp] theorem insert_idem (a : α) (s : finset α) : insert a (insert a s) = insert a s :=
-ext.2 $ by simp
+ext.2 $ λ x, by simp only [finset.mem_insert, or.assoc.symm, or_self]
 
 @[simp] theorem insert_ne_empty (a : α) (s : finset α) : insert a s ≠ ∅ :=
 ne_empty_of_mem (mem_insert_self a s)
 
 theorem insert_subset {a : α} {s t : finset α} : insert a s ⊆ t ↔ a ∈ t ∧ s ⊆ t :=
-by simp [subset_iff, or_imp_distrib, forall_and_distrib]
+by simp only [subset_iff, mem_insert, forall_eq, or_imp_distrib, forall_and_distrib]
 
 theorem subset_insert [h : decidable_eq α] (a : α) (s : finset α) : s ⊆ insert a s :=
 λ b, mem_insert_of_mem
@@ -216,7 +218,7 @@ insert_subset.2 ⟨mem_insert_self _ _, subset.trans h (subset_insert _ _)⟩
 lemma ssubset_iff {s t : finset α} : s ⊂ t ↔ (∃a, a ∉ s ∧ insert a s ⊆ t) :=
 iff.intro
   (assume ⟨h₁, h₂⟩,
-    have ∃a, a ∈ t ∧ a ∉ s, by simpa [finset.subset_iff, classical.not_forall] using h₂,
+    have ∃a ∈ t, a ∉ s, by simpa only [finset.subset_iff, classical.not_forall] using h₂,
     let ⟨a, hat, has⟩ := this in ⟨a, has, insert_subset.mpr ⟨hat, h₁⟩⟩)
   (assume ⟨a, hat, has⟩,
     let ⟨h₁, h₂⟩ := insert_subset.mp has in
