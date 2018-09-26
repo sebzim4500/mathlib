@@ -1225,19 +1225,6 @@ lemma tendsto_of_uniform_continuous_subtype
 by rw [(@map_nhds_subtype_val_eq α _ s a (mem_of_nhds ha) ha).symm]; exact
 tendsto_map' (continuous_iff_tendsto.mp hf.continuous _)
 
-instance [u₁ : uniform_space α] [u₂ : uniform_space β] : uniform_space (α × β) :=
-uniform_space.of_core_eq
-  (u₁.comap prod.fst ⊔ u₂.comap prod.snd).to_core
-  prod.topological_space
-  (calc prod.topological_space = (u₁.comap prod.fst ⊔ u₂.comap prod.snd).to_topological_space :
-      by rw [to_topological_space_sup, to_topological_space_comap, to_topological_space_comap]; refl
-    ... = _ : by rw [uniform_space.to_core_to_topological_space])
-
-theorem uniformity_prod [uniform_space α] [uniform_space β] : @uniformity (α × β) _ =
-  uniformity.comap (λp:(α × β) × α × β, (p.1.1, p.2.1)) ⊓
-  uniformity.comap (λp:(α × β) × α × β, (p.1.2, p.2.2)) :=
-sup_uniformity
-
 lemma uniform_embedding_subtype_emb {α : Type*} {β : Type*} [uniform_space α] [uniform_space β]
   (p : α → Prop) {e : α → β} (ue : uniform_embedding e) (de : dense_embedding e) :
   uniform_embedding (de.subtype_emb p) :=
@@ -1284,6 +1271,18 @@ end
 
 /- a similar product space is possible on the function space (uniformity of pointwise convergence),
   but we want to have the uniformity of uniform convergence on function spaces -/
+instance [u₁ : uniform_space α] [u₂ : uniform_space β] : uniform_space (α × β) :=
+uniform_space.of_core_eq
+  (u₁.comap prod.fst ⊔ u₂.comap prod.snd).to_core
+  prod.topological_space
+  (calc prod.topological_space = (u₁.comap prod.fst ⊔ u₂.comap prod.snd).to_topological_space :
+      by rw [to_topological_space_sup, to_topological_space_comap, to_topological_space_comap]; refl
+    ... = _ : by rw [uniform_space.to_core_to_topological_space])
+
+theorem uniformity_prod [uniform_space α] [uniform_space β] : @uniformity (α × β) _ =
+  uniformity.comap (λp:(α × β) × α × β, (p.1.1, p.2.1)) ⊓
+  uniformity.comap (λp:(α × β) × α × β, (p.1.2, p.2.2)) :=
+sup_uniformity
 
 lemma uniformity_prod_eq_prod [uniform_space α] [uniform_space β] :
   @uniformity (α×β) _ =
@@ -1293,6 +1292,19 @@ have map (λp:(α×α)×(β×β), ((p.1.1, p.2.1), (p.1.2, p.2.2))) =
   from funext $ assume f, map_eq_comap_of_inverse
     (funext $ assume ⟨⟨_, _⟩, ⟨_, _⟩⟩, rfl) (funext $ assume ⟨⟨_, _⟩, ⟨_, _⟩⟩, rfl),
 by rw [this, uniformity_prod, filter.prod, comap_inf, comap_comap_comp, comap_comap_comp]
+
+lemma mem_uniformity_of_uniform_continuous_invarant [uniform_space α] {s:set (α×α)} {f : α → α → α}
+  (hf : uniform_continuous (λp:α×α, f p.1 p.2)) (hs : s ∈ (@uniformity α _).sets) :
+  ∃u∈(@uniformity α _).sets, ∀a b c, (a, b) ∈ u → (f a c, f b c) ∈ s :=
+begin
+  rw [uniform_continuous, uniformity_prod_eq_prod, tendsto_map'_iff, (∘)] at hf,
+  rcases mem_map_sets_iff.1 (hf hs) with ⟨t, ht, hts⟩, clear hf,
+  rcases mem_prod_iff.1 ht with ⟨u, hu, v, hv, huvt⟩, clear ht,
+  refine ⟨u, hu, assume a b c hab, hts $ (mem_image _ _ _).2 ⟨⟨⟨a, b⟩, ⟨c, c⟩⟩, huvt ⟨_, _⟩, _⟩⟩,
+  exact hab,
+  exact refl_mem_uniformity hv,
+  refl
+end
 
 lemma mem_uniform_prod [t₁ : uniform_space α] [t₂ : uniform_space β] {a : set (α × α)} {b : set (β × β)}
   (ha : a ∈ (@uniformity α _).sets) (hb : b ∈ (@uniformity β _).sets) :

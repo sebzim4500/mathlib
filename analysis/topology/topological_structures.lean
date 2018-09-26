@@ -274,29 +274,16 @@ end
 section
 variables (α)
 lemma uniformity_eq_comap_nhds_zero : uniformity = comap (λx:α×α, x.2 - x.1) (nhds (0:α)) :=
-have ∀{s:set (α×α)} {f : α → α → α},
-  uniform_continuous (λp:α×α, f p.1 p.2) → s ∈ (@uniformity α _).sets →
-  ∃u∈(@uniformity α _).sets, ∀a b c, (a, b) ∈ u → (f a c, f b c) ∈ s,
-begin
-  assume s f hf hs,
-  rw [uniform_continuous, uniformity_prod_eq_prod, tendsto_map'_iff, (∘)] at hf,
-  rcases mem_map_sets_iff.1 (hf hs) with ⟨t, ht, hts⟩, clear hf,
-  rcases mem_prod_iff.1 ht with ⟨u, hu, v, hv, huvt⟩, clear ht,
-  refine ⟨u, hu, assume a b c hab, hts $ (mem_image _ _ _).2 ⟨⟨⟨a, b⟩, ⟨c, c⟩⟩, huvt ⟨_, _⟩, _⟩⟩,
-  exact hab,
-  exact refl_mem_uniformity hv,
-  refl
-end,
 begin
   rw [nhds_eq_comap_uniformity, filter.comap_comap_comp],
   refine le_antisymm (filter.map_le_iff_le_comap.1 _) _,
   { assume s hs,
-    rcases this uniform_continuous_sub' hs with ⟨t, ht, hts⟩,
+    rcases mem_uniformity_of_uniform_continuous_invarant uniform_continuous_sub' hs with ⟨t, ht, hts⟩,
     refine mem_map.2 (mem_sets_of_superset ht _),
     rintros ⟨a, b⟩,
     simpa [subset_def] using hts a b a },
   { assume s hs,
-    rcases this uniform_continuous_add' hs with ⟨t, ht, hts⟩,
+    rcases mem_uniformity_of_uniform_continuous_invarant uniform_continuous_add' hs with ⟨t, ht, hts⟩,
     refine ⟨_, ht, _⟩,
     rintros ⟨a, b⟩, simpa [subset_def] using hts 0 (b - a) a }
 end
