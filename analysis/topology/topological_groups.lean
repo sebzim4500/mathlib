@@ -14,55 +14,11 @@ Basic constructions for topological groups:
 import data.set.basic data.set.function
 import algebra.pi_instances
 import analysis.topology.completion
+noncomputable theory
 
 open filter
-universes u
-
-section topological_add_group
-variables {G : Type u} [topological_space G] [add_group G] [topological_add_group G]
-
-lemma exists_nhds_half {s : set G} (hs : s ∈ (nhds (0 : G)).sets) :
-  ∃ V ∈ (nhds (0 : G)).sets, ∀ v w ∈ V, v + w ∈ s :=
-begin
-  have : ((λa:G×G, a.1 + a.2) ⁻¹' s) ∈ (nhds ((0, 0) : G × G)).sets :=
-    tendsto_add' (by simpa using hs),
-  rw nhds_prod_eq at this,
-  rcases mem_prod_iff.1 this with ⟨V₁, H₁, V₂, H₂, H⟩,
-  exact ⟨V₁ ∩ V₂, inter_mem_sets H₁ H₂, assume v w ⟨hv, _⟩ ⟨_, hw⟩, @H (v, w) ⟨hv, hw⟩⟩
-end
-
-lemma exists_nhds_quarter {u : set G} (hu : u ∈ (nhds (0 : G)).sets) :
-  ∃ V ∈ (nhds (0 : G)).sets, ∀ {v w s t}, v ∈ V → w ∈ V → s ∈ V → t ∈ V → v + w + s + t ∈ u :=
-begin
-  rcases exists_nhds_half hu with ⟨W, W_nhd, h⟩,
-  rcases exists_nhds_half W_nhd with ⟨V, V_nhd, h'⟩,
-  existsi [V, V_nhd],
-  intros v w s t v_in w_in s_in t_in,
-  simpa using h _ _ (h' v w v_in w_in) (h' s t s_in t_in)
-end
-
-variable (G)
-lemma nhds_zero_symm : comap (λ r : G, -r) (nhds (0 : G)) = nhds (0 : G) :=
-begin
-  have lim : tendsto (λ r : G, -r) (nhds 0) (nhds 0),
-  { simpa using tendsto_neg (@tendsto_id G (nhds 0)) },
-  refine comap_eq_of_inverse _ _ lim lim,
-  { funext x, simp },
-end
-
-variable {G}
-
-lemma nhds_translation (x : G) : comap (λy:G, y - x) (nhds 0) = nhds x :=
-begin
-  refine comap_eq_of_inverse (λy:G, y + x) _ _ _,
-  { funext x; simp },
-  { suffices : tendsto (λ (y : G), y - x) (nhds x) (nhds (x - x)), { simpa },
-    exact tendsto_sub tendsto_id tendsto_const_nhds },
-  { suffices : tendsto (λ (y : G), y + x) (nhds 0) (nhds (0 + x)), { simpa },
-    exact tendsto_add tendsto_id tendsto_const_nhds }
-end
-
-end topological_add_group
+universes u v w x
+variables {α : Type u} {β : Type v} {γ : Type w} {δ : Type x}
 
 section topological_add_comm_group
 variables {G : Type u} [add_comm_group G] [topological_space G] [topological_add_group G]
@@ -102,19 +58,20 @@ def topological_add_group.to_uniform_space : uniform_space G :=
   begin
     intro S,
     let S' := λ x, {p : G × G | p.1 = x → p.2 ∈ S},
-    change is_open S ↔ ∀ (x : G), x ∈ S → S' x ∈ (comap (λp:G×G, p.2 - p.1) (nhds (0 : G))).sets,
+    show is_open S ↔ ∀ (x : G), x ∈ S → S' x ∈ (comap (λp:G×G, p.2 - p.1) (nhds (0 : G))).sets,
     rw [is_open_iff_mem_nhds],
     refine forall_congr (assume a, forall_congr (assume ha, _)),
     rw [← nhds_translation a, mem_comap_sets, mem_comap_sets],
     refine exists_congr (assume t, exists_congr (assume ht, _)),
+    show (λ (y : G), y - a) ⁻¹' t ⊆ S ↔ (λ (p : G × G), p.snd - p.fst) ⁻¹' t ⊆ S' a,
     split,
     { rintros h ⟨x, y⟩ hx rfl, exact h hx },
     { rintros h x hx, exact @h (a, x) hx rfl }
   end }
 local attribute [instance] topological_add_group.to_uniform_space
-variable {G}
 
 lemma uniformity_eq_comap_nhds_zero' : uniformity = comap (λp:G×G, p.2 - p.1) (nhds (0 : G)) := rfl
+variable {G}
 
 lemma topological_add_group_is_uniform : uniform_add_group G :=
 have tendsto
@@ -125,13 +82,21 @@ have tendsto
 begin
   constructor,
   rw [uniform_continuous, uniformity_prod_eq_prod, tendsto_map'_iff,
-    @uniformity_eq_comap_nhds_zero' G _inst_1 _inst_2 _inst_3, tendsto_comap_iff, prod_comap_comap_eq],
+    uniformity_eq_comap_nhds_zero' G, tendsto_comap_iff, prod_comap_comap_eq],
   simpa [(∘)]
 end
 
 end topological_add_comm_group
 
-/-- A additive group with a neighbourhood around 0.
+/-
+namespace completion
+variables [uniform_space α] [add_group α] [uniform_add_group α]
+
+#check topological_add_group.to_uniform_space
+
+end completion
+-/
+/-- β additive group with a neighbourhood around 0.
 Only used to construct a topology and uniform space.
 
 This is currently only available for commutative groups, but it can be extended to
@@ -143,7 +108,7 @@ class add_group_with_zero_nhd (α : Type u) extends add_comm_group α :=
 (sub_Z {} : tendsto (λp:α×α, p.1 - p.2) (Z.prod Z) Z)
 
 namespace add_group_with_zero_nhd
-variables (α : Type*) [add_group_with_zero_nhd α]
+variables (α) [add_group_with_zero_nhd α]
 
 local notation `Z` := add_group_with_zero_nhd.Z
 

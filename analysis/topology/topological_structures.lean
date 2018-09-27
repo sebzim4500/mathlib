@@ -201,6 +201,47 @@ instance [topological_add_group α] [topological_space β] [add_group β] [topol
   topological_add_group (α × β) :=
 { continuous_neg := continuous.prod_mk (continuous_neg continuous_fst) (continuous_neg continuous_snd) }
 
+lemma exists_nhds_half [topological_add_group α] {s : set α} (hs : s ∈ (nhds (0 : α)).sets) :
+  ∃ V ∈ (nhds (0 : α)).sets, ∀ v w ∈ V, v + w ∈ s :=
+begin
+  have : ((λa:α×α, a.1 + a.2) ⁻¹' s) ∈ (nhds ((0, 0) : α × α)).sets :=
+    tendsto_add' (by simpa using hs),
+  rw nhds_prod_eq at this,
+  rcases mem_prod_iff.1 this with ⟨V₁, H₁, V₂, H₂, H⟩,
+  exact ⟨V₁ ∩ V₂, inter_mem_sets H₁ H₂, assume v w ⟨hv, _⟩ ⟨_, hw⟩, @H (v, w) ⟨hv, hw⟩⟩
+end
+
+lemma exists_nhds_quarter [topological_add_group α] {u : set α} (hu : u ∈ (nhds (0 : α)).sets) :
+  ∃ V ∈ (nhds (0 : α)).sets, ∀ {v w s t}, v ∈ V → w ∈ V → s ∈ V → t ∈ V → v + w + s + t ∈ u :=
+begin
+  rcases exists_nhds_half hu with ⟨W, W_nhd, h⟩,
+  rcases exists_nhds_half W_nhd with ⟨V, V_nhd, h'⟩,
+  existsi [V, V_nhd],
+  intros v w s t v_in w_in s_in t_in,
+  simpa using h _ _ (h' v w v_in w_in) (h' s t s_in t_in)
+end
+
+section
+variable (α)
+lemma nhds_zero_symm [topological_add_group α] : comap (λr:α, -r) (nhds (0 : α)) = nhds (0 : α) :=
+begin
+  have lim : tendsto (λr:α, -r) (nhds 0) (nhds 0),
+  { simpa using tendsto_neg (@tendsto_id α (nhds 0)) },
+  refine comap_eq_of_inverse _ _ lim lim,
+  { funext x, simp },
+end
+end
+
+lemma nhds_translation [topological_add_group α] (x : α) : comap (λy:α, y - x) (nhds 0) = nhds x :=
+begin
+  refine comap_eq_of_inverse (λy:α, y + x) _ _ _,
+  { funext x; simp },
+  { suffices : tendsto (λy:α, y - x) (nhds x) (nhds (x - x)), { simpa },
+    exact tendsto_sub tendsto_id tendsto_const_nhds },
+  { suffices : tendsto (λy:α, y + x) (nhds 0) (nhds (0 + x)), { simpa },
+    exact tendsto_add tendsto_id tendsto_const_nhds }
+end
+
 end topological_add_group
 
 section uniform_add_group
