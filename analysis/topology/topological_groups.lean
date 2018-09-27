@@ -68,11 +68,13 @@ def topological_add_group.to_uniform_space : uniform_space G :=
     { rintros h ⟨x, y⟩ hx rfl, exact h hx },
     { rintros h x hx, exact @h (a, x) hx rfl }
   end }
+
+section
 local attribute [instance] topological_add_group.to_uniform_space
 
 lemma uniformity_eq_comap_nhds_zero' : uniformity = comap (λp:G×G, p.2 - p.1) (nhds (0 : G)) := rfl
-variable {G}
 
+variable {G}
 lemma topological_add_group_is_uniform : uniform_add_group G :=
 have tendsto
     ((λp:(G×G), p.1 - p.2) ∘ (λp:(G×G)×(G×G), (p.1.2 - p.1.1, p.2.2 - p.2.1)))
@@ -85,17 +87,18 @@ begin
     uniformity_eq_comap_nhds_zero' G, tendsto_comap_iff, prod_comap_comap_eq],
   simpa [(∘)]
 end
+end
+
+lemma to_uniform_space_eq [u : uniform_space α] [add_comm_group α] [uniform_add_group α]:
+  topological_add_group.to_uniform_space α = u :=
+begin
+  ext : 1,
+  show @uniformity α (topological_add_group.to_uniform_space α) = uniformity,
+  rw [uniformity_eq_comap_nhds_zero' α, uniformity_eq_comap_nhds_zero α]
+end
 
 end topological_add_comm_group
 
-/-
-namespace completion
-variables [uniform_space α] [add_group α] [uniform_add_group α]
-
-#check topological_add_group.to_uniform_space
-
-end completion
--/
 /-- β additive group with a neighbourhood around 0.
 Only used to construct a topology and uniform space.
 
