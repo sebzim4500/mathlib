@@ -72,7 +72,7 @@ by rw [←prod_union_inter, h]; exact (mul_one _).symm
 @[to_additive finset.sum_sdiff]
 lemma prod_sdiff [decidable_eq α] (h : s₁ ⊆ s₂) : (s₂ \ s₁).prod f * s₁.prod f = s₂.prod f :=
 by rw [←prod_union (sdiff_inter_self _ _), sdiff_union_of_subset h]
-#check eq_empty_of_forall_not_mem
+
 @[to_additive finset.sum_bind]
 lemma prod_bind [decidable_eq α] {s : finset γ} {t : γ → finset α} :
   (∀x∈s, ∀y∈s, x ≠ y → t x ∩ t y = ∅) → (s.bind t).prod f = s.prod (λx, (t x).prod f) :=

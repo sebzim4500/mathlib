@@ -1026,9 +1026,9 @@ protected def sigma (s : finset α) (t : Πa, finset (σ a)) : finset (Σa, σ a
 
 @[simp] theorem mem_sigma {p : sigma σ} : p ∈ s.sigma t ↔ p.1 ∈ s ∧ p.2 ∈ t (p.1) := mem_sigma
 
-theorem sigma_mono {s₁ s₂ : finset α} {t₁ t₂ : Πa, finset (σ a)} :
-  s₁ ⊆ s₂ → (∀a, t₁ a ⊆ t₂ a) → s₁.sigma t₁ ⊆ s₂.sigma t₂ :=
-by simp [subset_iff, mem_sigma] {contextual := tt}
+theorem sigma_mono {s₁ s₂ : finset α} {t₁ t₂ : Πa, finset (σ a)}
+  (H1 : s₁ ⊆ s₂) (H2 : ∀a, t₁ a ⊆ t₂ a) : s₁.sigma t₁ ⊆ s₂.sigma t₂ :=
+λ ⟨x, sx⟩ H, let ⟨H3, H4⟩ := mem_sigma.1 H in mem_sigma.2 ⟨H1 H3, H2 x H4⟩
 
 theorem sigma_eq_bind [decidable_eq α] [∀a, decidable_eq (σ a)] (s : finset α) (t : Πa, finset (σ a)) :
  s.sigma t = s.bind (λa, (t a).image $ λb, ⟨a, b⟩) :=
