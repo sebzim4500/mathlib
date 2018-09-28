@@ -1,3 +1,11 @@
+/-
+Copyright (c) 2018 Simon Hudon. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Simon Hudon
+
+`foldl` and `foldr` generalized to any `traversable` collection.
+-/
+
 
 import data.list.basic
 import category.traversable.instances
@@ -27,23 +35,23 @@ def foldr.lift {α} (x : α → α) : foldr α punit := x
 
 end functor
 
-open functor
-
-instance {α} : applicative (foldr α) :=
+instance {α} : applicative (functor.foldr α) :=
 { pure := λ _ _, id,
   seq := λ _ _ f x, f ∘ x }
 
-instance {α} : applicative (foldl α) :=
+instance {α} : applicative (functor.foldl α) :=
 { pure := λ _ _, id,
   seq := λ _ _ f x, x ∘ f }
 
-instance {α} : is_lawful_applicative (foldr α) :=
+instance {α} : is_lawful_applicative (functor.foldr α) :=
 by refine { .. }; intros; refl
 
-instance {α} : is_lawful_applicative (foldl α) :=
+instance {α} : is_lawful_applicative (functor.foldl α) :=
 by refine { .. }; intros; refl
 
 namespace traversable
+
+open functor
 
 variables {t : Type u → Type u} [traversable t]
 
@@ -61,26 +69,28 @@ open ulift
 def length {α} (xs : t α) : ℕ :=
 down $ foldl (λ l _, up $ 1+down l) (up 0) xs
 
-lemma list_foldl_eq {α β} (f : α → β → α) (x : α) (xs : list β) :
+end traversable
+
+open traversable
+
+open functor (hiding foldl foldr)
+
+lemma list.list_foldl_eq {α β} (f : α → β → α) (x : α) (xs : list β) :
   foldl f x xs = list.foldl f x xs :=
 begin
-  simp [foldl,foldl.eval,traverse,foldl.lift,(∘),flip,list.foldl],
+  simp [foldl,foldl.eval,traverse,foldl.lift,(∘),flip,list.foldl,to_list],
   symmetry,
   induction xs generalizing x, refl,
   simp [list.traverse,list.foldl,xs_ih,(<*>),(<$>)],
 end
 
-lemma list_foldr_eq {α β} (f : α → β → β) (x : β) (xs : list α) :
+lemma list.list_foldr_eq {α β} (f : α → β → β) (x : β) (xs : list α) :
   foldr f x xs = list.foldr f x xs :=
 begin
   simp [foldr,foldr.eval,traverse,foldr.lift,(∘),flip,list.foldr],
   symmetry, induction xs, refl,
   simp [list.traverse,list.foldl,xs_ih,(<*>),(<$>)],
 end
-
-end traversable
-
-open traversable
 
 lemma list.to_list_eq_self {α} (xs : list α) :
   to_list xs = xs :=
@@ -94,6 +104,6 @@ end
 
 lemma list.length_to_list {α} (xs : list α) :
   length (to_list xs) = xs.length :=
-by { rw [length,list_foldl_eq,list.to_list_eq_self,← list.foldr_reverse,← list.length_reverse],
+by { rw [length,list.list_foldl_eq,list.to_list_eq_self,← list.foldr_reverse,← list.length_reverse],
      generalize : list.reverse xs = l,
      induction l; simp *, }
