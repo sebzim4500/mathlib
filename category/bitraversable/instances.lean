@@ -57,16 +57,16 @@ open bitraversable functor
 
 @[priority 0]
 instance bitraversable.traversable {α} : traversable (t α) :=
-{ traverse := @tsecond t _ _ }
+{ traverse := @tsnd t _ _ }
 
 open is_lawful_traversable
 
 @[priority 0]
 instance bitraversable.is_lawful_traversable [is_lawful_bitraversable t] {α} : is_lawful_traversable (t α) :=
-by { constructor; introsI; simp [traverse,comp_tsecond] with functor_norm,
+by { constructor; introsI; simp [traverse,comp_tsnd] with functor_norm,
      { refl },
-     { simp [tsecond_eq_second_id], refl },
-     { simp [tsecond,binaturality,function.comp] with functor_norm } }
+     { simp [tsnd_eq_snd_id], refl },
+     { simp [tsnd,binaturality,function.comp] with functor_norm } }
 
 end
 

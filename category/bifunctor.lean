@@ -33,50 +33,50 @@ variables {F : Type u₀ → Type u₁ → Type u₂} [bifunctor F]
 namespace bifunctor
 
 @[reducible]
-def first {α α' β} (f : α → α') : F α β → F α' β :=
+def fst {α α' β} (f : α → α') : F α β → F α' β :=
 bimap f id
 
 @[reducible]
-def second {α β β'} (f : β → β') : F α β → F α β' :=
+def snd {α β β'} (f : β → β') : F α β → F α β' :=
 bimap id f
 
 variable [is_lawful_bifunctor F]
 
-@[higher_order first_id]
-lemma id_first : Π {α β} (x : F α β), first id x = x :=
+@[higher_order fst_id]
+lemma id_fst : Π {α β} (x : F α β), fst id x = x :=
 @id_bimap _ _ _
 
-@[higher_order second_id]
-lemma id_second : Π {α β} (x : F α β), second id x = x :=
+@[higher_order snd_id]
+lemma id_snd : Π {α β} (x : F α β), snd id x = x :=
 @id_bimap _ _ _
 
-@[higher_order first_comp_first]
-lemma comp_first {α₀ α₁ α₂ β}
+@[higher_order fst_comp_fst]
+lemma comp_fst {α₀ α₁ α₂ β}
   (f : α₀ → α₁) (f' : α₁ → α₂) (x : F α₀ β) :
-  first f' (first f x) = first (f' ∘ f)  x :=
-by simp [first,bimap_bimap]
+  fst f' (fst f x) = fst (f' ∘ f)  x :=
+by simp [fst,bimap_bimap]
 
-@[higher_order first_comp_second]
-lemma first_second {α₀ α₁ β₀ β₁}
+@[higher_order fst_comp_snd]
+lemma fst_snd {α₀ α₁ β₀ β₁}
   (f : α₀ → α₁) (f' : β₀ → β₁) (x : F α₀ β₀) :
-  first f (second f' x) = bimap f f' x :=
-by simp [first,bimap_bimap]
+  fst f (snd f' x) = bimap f f' x :=
+by simp [fst,bimap_bimap]
 
-@[higher_order second_comp_first]
-lemma second_first {α₀ α₁ β₀ β₁}
+@[higher_order snd_comp_fst]
+lemma snd_fst {α₀ α₁ β₀ β₁}
   (f : α₀ → α₁) (f' : β₀ → β₁) (x : F α₀ β₀) :
-  second f' (first f x) = bimap f f' x :=
-by simp [second,bimap_bimap]
+  snd f' (fst f x) = bimap f f' x :=
+by simp [snd,bimap_bimap]
 
-@[higher_order second_comp_second]
-lemma comp_second {α β₀ β₁ β₂}
+@[higher_order snd_comp_snd]
+lemma comp_snd {α β₀ β₁ β₂}
   (g : β₀ → β₁) (g' : β₁ → β₂) (x : F α β₀) :
-  second g' (second g x) = second (g' ∘ g) x :=
-by simp [second,bimap_bimap]
+  snd g' (snd g x) = snd (g' ∘ g) x :=
+by simp [snd,bimap_bimap]
 
-attribute [functor_norm] bimap_bimap comp_second comp_first
-  second_comp_second second_comp_first first_comp_second first_comp_first bimap_comp_bimap
-  bimap_id_id first_id second_id
+attribute [functor_norm] bimap_bimap comp_snd comp_fst
+  snd_comp_snd snd_comp_fst fst_comp_snd fst_comp_fst bimap_comp_bimap
+  bimap_id_id fst_id snd_id
 
 def bicompl (F : Type* → Type* → Type*) (G : Type* → Type*) (H : Type* → Type*) (α β) :=
 F (G α) (H β)
@@ -114,7 +114,7 @@ open bifunctor functor
 
 @[priority 0]
 instance bifunctor.functor {α} : functor (F α) :=
-{ map := λ _ _, second }
+{ map := λ _ _, snd }
 
 @[priority 0]
 instance bifunctor.is_lawful_functor [is_lawful_bifunctor F] {α} : is_lawful_functor (F α) :=
