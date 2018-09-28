@@ -768,8 +768,6 @@ eq_of_veq $ by rw [map_val, attach_val]; exact attach_map_val _
 
 end map
 
-set_option profiler true
-set_option trace.simplify.rewrite true
 section image
 variables [decidable_eq β]
 
