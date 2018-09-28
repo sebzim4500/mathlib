@@ -43,7 +43,7 @@ def id.mk {α : Sort u} : α → id α := id
 namespace functor
 
 def const (α : Type*) (β : Type*) := α
-def const' (α : Type*) := const α
+def add_const (α : Type*) := const α
 
 @[pattern] def const.mk {α β} (x : α) : const α β := x
 
@@ -57,13 +57,13 @@ protected def map {γ α β} (f : α → β) (x : const γ β) : const γ α := 
 
 instance {γ} : functor (const γ) :=
 { map := @const.map γ }
-instance const'.functor {γ} : functor (const' γ) :=
+instance add_const.functor {γ} : functor (add_const γ) :=
 @const.functor γ
 
 instance {γ} : is_lawful_functor (const γ) :=
 by constructor; intros; refl
 
-instance const'.is_lawful_functor {γ} : is_lawful_functor (const' γ) :=
+instance add_const.is_lawful_functor {γ} : is_lawful_functor (add_const γ) :=
 @const.is_lawful_functor γ
 
 end const

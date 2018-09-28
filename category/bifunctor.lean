@@ -18,15 +18,14 @@ export bifunctor ( bimap )
 
 class is_lawful_bifunctor (F : Type u₀ → Type u₁ → Type u₂) [bifunctor F] :=
 (id_bimap : Π {α β} (x : F α β), bimap id id x = x)
-(comp_bimap : Π {α₀ α₁ α₂ β₀ β₁ β₂} (f : α₀ → α₁) (f' : α₁ → α₂)
+(bimap_bimap : Π {α₀ α₁ α₂ β₀ β₁ β₂} (f : α₀ → α₁) (f' : α₁ → α₂)
   (g : β₀ → β₁) (g' : β₁ → β₂) (x : F α₀ β₀),
   bimap f' g' (bimap f g x) = bimap (f' ∘ f) (g' ∘ g) x)
-  -- `comp_bimap` constrasts with `comp_map` from lawful functors but
-  -- this form is more easily usable in a set of rewrite rules.
-export is_lawful_bifunctor (id_bimap comp_bimap)
+
+export is_lawful_bifunctor (id_bimap bimap_bimap)
 
 attribute [higher_order bimap_id_id] id_bimap
-attribute [higher_order bimap_comp_bimap] comp_bimap
+attribute [higher_order bimap_comp_bimap] bimap_bimap
 
 export is_lawful_bifunctor (bimap_id_id bimap_comp_bimap)
 variables {F : Type u₀ → Type u₁ → Type u₂} [bifunctor F]
@@ -55,27 +54,27 @@ lemma id_second : Π {α β} (x : F α β), second id x = x :=
 lemma comp_first {α₀ α₁ α₂ β}
   (f : α₀ → α₁) (f' : α₁ → α₂) (x : F α₀ β) :
   first f' (first f x) = first (f' ∘ f)  x :=
-by simp [first,comp_bimap]
+by simp [first,bimap_bimap]
 
 @[higher_order first_comp_second]
 lemma first_second {α₀ α₁ β₀ β₁}
   (f : α₀ → α₁) (f' : β₀ → β₁) (x : F α₀ β₀) :
   first f (second f' x) = bimap f f' x :=
-by simp [first,comp_bimap]
+by simp [first,bimap_bimap]
 
 @[higher_order second_comp_first]
 lemma second_first {α₀ α₁ β₀ β₁}
   (f : α₀ → α₁) (f' : β₀ → β₁) (x : F α₀ β₀) :
   second f' (first f x) = bimap f f' x :=
-by simp [second,comp_bimap]
+by simp [second,bimap_bimap]
 
 @[higher_order second_comp_second]
 lemma comp_second {α β₀ β₁ β₂}
   (g : β₀ → β₁) (g' : β₁ → β₂) (x : F α β₀) :
   second g' (second g x) = second (g' ∘ g) x :=
-by simp [second,comp_bimap]
+by simp [second,bimap_bimap]
 
-attribute [functor_norm] comp_bimap comp_second comp_first
+attribute [functor_norm] bimap_bimap comp_second comp_first
   second_comp_second second_comp_first first_comp_second first_comp_first bimap_comp_bimap
   bimap_id_id first_id second_id
 
