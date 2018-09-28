@@ -4,22 +4,10 @@ import category.traversable.instances
 
 universes u v
 
+namespace functor
+
 def foldl (α : Type u) (β : Type v) := α → α
 def foldr (α : Type u) (β : Type v) := α → α
-
-instance {α} : applicative (foldr α) :=
-{ pure := λ _ _, id,
-  seq := λ _ _ f x, f ∘ x }
-
-instance {α} : applicative (foldl α) :=
-{ pure := λ _ _, id,
-  seq := λ _ _ f x, x ∘ f }
-
-instance {α} : is_lawful_applicative (foldr α) :=
-by refine { .. }; intros; refl
-
-instance {α} : is_lawful_applicative (foldl α) :=
-by refine { .. }; intros; refl
 
 def foldr.eval {α β} (x : foldr α β) : α → α := x
 
@@ -36,6 +24,24 @@ list.cons x
 
 def foldl.lift {α} (x : α → α) : foldl α punit := x
 def foldr.lift {α} (x : α → α) : foldr α punit := x
+
+end functor
+
+open functor
+
+instance {α} : applicative (foldr α) :=
+{ pure := λ _ _, id,
+  seq := λ _ _ f x, f ∘ x }
+
+instance {α} : applicative (foldl α) :=
+{ pure := λ _ _, id,
+  seq := λ _ _ f x, x ∘ f }
+
+instance {α} : is_lawful_applicative (foldr α) :=
+by refine { .. }; intros; refl
+
+instance {α} : is_lawful_applicative (foldl α) :=
+by refine { .. }; intros; refl
 
 namespace traversable
 
