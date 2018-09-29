@@ -15,16 +15,19 @@ meta def deinternalize_field : name → name
 
 end name
 
-namespace native
 namespace name_set
 meta def filter (s : name_set) (P : name → bool) : name_set :=
 s.fold s (λ a m, if P a then m else m.erase a)
+
+meta def mfilter {m} [monad m] (s : name_set) (P : name → m bool) : m name_set :=
+s.fold (pure s) (λ a m,
+  do x ← m,
+     mcond (P a) (pure x) (pure $ x.erase a))
 
 meta def union (s t : name_set) : name_set :=
 s.fold t (λ a t, t.insert a)
 
 end name_set
-end native
 namespace expr
 open tactic
 

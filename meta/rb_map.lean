@@ -13,6 +13,11 @@ namespace rb_set
 meta def filter {key} (s : rb_set key) (P : key → bool) : rb_set key :=
 s.fold s (λ a m, if P a then m else m.erase a)
 
+meta def mfilter {m} [monad m] {key} (s : rb_set key) (P : key → m bool) : m (rb_set key) :=
+s.fold (pure s) (λ a m,
+  do x ← m,
+     mcond (P a) (pure x) (pure $ x.erase a))
+
 meta def union {key} (s t : rb_set key) : rb_set key :=
 s.fold t (λ a t, t.insert a)
 
