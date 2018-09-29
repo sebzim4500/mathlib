@@ -1,6 +1,7 @@
 
 import meta.rb_map
 import tactic.basic
+import category.traversable
 
 open interactive interactive.types lean.parser
 
@@ -34,17 +35,20 @@ do r ← e.get_structure_instance_info,
 
 local postfix `?`:9001 := optional
 
+meta def parse_config : option pexpr → tactic (simp_config_ext × format)
+| none := pure ({}, "")
+| (some cfg) :=
+  do e ← to_expr ``(%%cfg : simp_config_ext),
+     fmt ← has_to_tactic_format.to_tactic_format cfg,
+     prod.mk <$> eval_expr simp_config_ext e
+             <*> rec.to_tactic_format cfg
+
 meta def squeeze_simp
   (use_iota_eqn : parse (tk "!")?) (no_dflt : parse only_flag) (hs : parse simp_arg_list)
   (attr_names : parse with_ident_list) (locat : parse location)
   (cfg : parse texpr?) : tactic unit :=
 do g ← main_goal,
-   (cfg',c) ← do { cfg ← (cfg : tactic pexpr),
-                   e ← to_expr ``(%%cfg : simp_config_ext),
-                   fmt ← has_to_tactic_format.to_tactic_format cfg,
-                   prod.mk <$> eval_expr simp_config_ext e
-                           <*> rec.to_tactic_format cfg }
-       <|> pure ({ }, ""),
+   (cfg',c) ← parse_config cfg,
    simp use_iota_eqn no_dflt hs attr_names locat cfg',
    g ← instantiate_mvars g,
    let vs := g.list_constant,
@@ -55,6 +59,25 @@ do g ← main_goal,
    hs ← hs.mmap arg.to_tactic_format,
    let args := hs ++ vs.to_list.map to_fmt,
    trace format!"simp{use_iota_eqn} only {args}{attrs}{loc}{c}"
+
+meta def squeeze_simpa
+  (use_iota_eqn : parse (tk "!")?) (no_dflt : parse only_flag) (hs : parse simp_arg_list)
+  (attr_names : parse with_ident_list) (tgt : parse (tk "using" *> texpr)?)
+  (cfg : parse texpr?) : tactic unit :=
+do g ← main_goal,
+   (cfg',c) ← parse_config cfg,
+   tgt' ← traverse (λ t, do t ← to_expr t >>= pp,
+                            pure format!" using {t}") tgt,
+   simpa use_iota_eqn no_dflt hs attr_names tgt cfg',
+   g ← instantiate_mvars g,
+   let vs := g.list_constant,
+   vs ← vs.mfilter (succeeds ∘ has_attribute `simp),
+   let use_iota_eqn := if use_iota_eqn.is_some then "!" else "",
+   let attrs := if attr_names.empty then "" else string.join (list.intersperse " " (" with" :: attr_names.map to_string)),
+   let tgt' := tgt'.get_or_else "",
+   hs ← hs.mmap arg.to_tactic_format,
+   let args := hs ++ vs.to_list.map to_fmt,
+   trace format!"simpa{use_iota_eqn} only {args}{attrs}{tgt'}{c}"
 
 end interactive
 end tactic
