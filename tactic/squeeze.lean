@@ -17,6 +17,11 @@ meta def loc.to_string : loc → string
 namespace tactic
 namespace interactive
 
+meta def arg.to_tactic_format : simp_arg_type → tactic format
+| (simp_arg_type.expr e) := pp e
+| simp_arg_type.all_hyps := pure "*"
+| (simp_arg_type.except n) := pure format!"-{n}"
+
 meta def rec.to_tactic_format (e : pexpr) : tactic format :=
 do r ← e.get_structure_instance_info,
    fs ← mzip_with (λ n v,
@@ -47,7 +52,9 @@ do g ← main_goal,
    let use_iota_eqn := if use_iota_eqn.is_some then "!" else "",
    let attrs := if attr_names.empty then "" else string.join (list.intersperse " " (" with" :: attr_names.map to_string)),
    let loc := loc.to_string locat,
-   trace format!"simp{use_iota_eqn} only {vs.to_list}{attrs}{loc}{c}"
+   hs ← hs.mmap arg.to_tactic_format,
+   let args := hs ++ vs.to_list.map to_fmt,
+   trace format!"simp{use_iota_eqn} only {args}{attrs}{loc}{c}"
 
 end interactive
 end tactic
